@@ -132,7 +132,16 @@ flows/2026-04-26_14-05/goodnight-f6417ce9-e7e0-4571-a3f7-87895a0e93e0.json
 
 BLL (Better Logic) variables use a different convention: `bll-<variable-name>.json` (no UUID suffix — BLL variables are identified by name, not ID).
 
-Each backup run creates a new timestamped directory (`YYYY-MM-DD_HH-MM`). If the directory already exists, the script exits with an error to prevent overwriting.
+Each backup run creates a new timestamped directory (`YYYY-MM-DD_HH-MM`). If the directory already exists, the script exits with an error to prevent overwriting. Pass `--force` to overwrite an existing directory for the same timestamp instead of aborting.
+
+#### CLI flags
+
+| Flag | Description |
+|---|---|
+| `--force` | Overwrite an existing backup directory for the same timestamp (default: abort if directory exists) |
+| `--version` | Print version and exit |
+
+> **Note:** If `HOMEY_API_TOKEN` doesn't look like a JWT, backup.py prints a non-fatal warning and continues. The backup will still run — the warning is informational only.
 
 #### Summary output
 
@@ -180,12 +189,15 @@ An interactive terminal UI that reads local backup files and **prepares** them f
 
 1. **Choose a category** — Device, Flow, Flow Folder, Zone, or Variable
 2. **Select a backup date**
-3. **Filter by name** (or press Enter to show all)
+3. **Filter by name or ID** (or press Enter to show all) — filtering matches against both the item name and its ID
 4. **Select an item** from the list
-5. **Copy JSON to clipboard** (optional) — paste directly into Homey
-6. **Import instructions** are printed for the selected category
+5. **Review JSON preview** — a formatted preview of the item JSON is shown before the clipboard copy prompt
+6. **Copy JSON to clipboard** (optional) — paste directly into Homey
+7. **Import instructions** are printed for the selected category
 
 Press `Ctrl+C` at any prompt to exit cleanly.
+
+Run `uv run restore.py --version` to print the version and exit.
 
 #### Restore order matters
 
@@ -265,7 +277,9 @@ Device, zone, and variable names are **auto-resolved** from matching backup time
 | `--variables-dir DIR` | auto | Directory of variable backup JSONs |
 | `-d DIR` | — | Output directory for batch mode |
 | `-o FILE` | — | Output SVG/PNG path (single-file mode) |
+| `--filter TEXT` | — | Only render flows whose name contains TEXT (case-insensitive), e.g. `--filter kitchen` |
 | `--png` | off | Convert output to PNG instead of SVG (requires `cairosvg` + `libcairo2`) |
+| `--version` | — | Print version and exit |
 
 ---
 
@@ -304,6 +318,6 @@ Homey_Backups/
 | Clipboard copy fails (Linux) | `sudo apt install xclip` or `sudo apt install xsel` |
 | Clipboard copy fails (macOS) | Should work natively via `pbcopy`; if not, try `pip install pyperclip --upgrade` |
 | Clipboard copy fails (Windows) | Should work natively; if not, try `pip install pyperclip --upgrade` |
-| Backup directory already exists | Each backup run needs a unique timestamp — wait a minute or delete the existing directory |
+| Backup directory already exists | Each backup run needs a unique timestamp — wait a minute, delete the existing directory, or re-run with `--force` to overwrite it |
 | SVG shows `[var:041893df]` | Run `backup.py` first to create a `variables/` backup; the renderer auto-discovers it |
 | Flows restored but show as broken | Flow references old device UUID — re-pair the device and update the flow card; see [RECOVERY.md](./RECOVERY.md) |
