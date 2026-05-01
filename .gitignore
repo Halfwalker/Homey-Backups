@@ -32,3 +32,6 @@ Thumbs.db
 *.swo
 .*.swp
 tags
+
+# ── Working documents (never commit) ─────────────────────────────────────────
+working-do-not-commit/

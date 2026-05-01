@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 # /// script
 # requires-python = ">=3.11"
-# dependencies = []
+# dependencies = ["cairosvg>=2.7"]
 # ///
-# Note: --png requires cairosvg. Run with: uv run --with cairosvg homey_flow_svg.py [args]
 """
 homey_flow_svg.py — Homey Flow → SVG/PNG Visualizer
 
 Renders Homey flow JSON exports (both standard and advanced flows) as SVG
-diagrams matching Homey's dark-themed visual editor style. Zero required
-external dependencies (optional cairosvg for --png export).
+diagrams matching Homey's dark-themed visual editor style.
+Run with `uv run homey_flow_svg.py` — uv auto-installs cairosvg (for --png).
+Also needs the libcairo2 native library (Linux: `sudo apt install libcairo2-dev`).
 
 Usage:
     python homey_flow_svg.py path/to/flow.json
@@ -159,7 +159,7 @@ class SVGBuilder:
         lines = _word_wrap(content, max_chars)[:max_lines]
         all_lines = _word_wrap(content, max_chars)
         if len(lines) < len(all_lines):
-            lines[-1] = lines[-1][: max_chars - 1] + "…"
+            lines[-1] = lines[-1][: max_chars] + "…"
         spans = ""
         for i, ln in enumerate(lines):
             dy = f' dy="{line_h}"' if i > 0 else ""
@@ -801,6 +801,23 @@ def _build_zone_lookup(zones_dir: Path) -> dict[str, str]:
     return lookup
 
 
+def _build_folder_lookup(flow_folders_dir: Path) -> dict[str, str]:
+    """Scan *flow_folders_dir* for backup JSON files; return uuid → folder_name mapping."""
+    lookup: dict[str, str] = {}
+    if not flow_folders_dir or not flow_folders_dir.is_dir():
+        return lookup
+    for fpath in flow_folders_dir.glob("*.json"):
+        try:
+            data = json.loads(fpath.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        name = data.get("name") or ""
+        folder_id = data.get("id") or data.get("_id") or _stem_uuid(fpath.stem)
+        if folder_id and name:
+            lookup[folder_id] = name
+    return lookup
+
+
 def _build_trigger_name_map(
     cards: dict[str, dict],
     zone_lookup: dict[str, str] | None = None,
@@ -904,10 +921,11 @@ def _write_output(svg_str: str, out_path: Path, to_png: bool) -> Path:
         if _cairosvg is None:
             raise SystemExit(
                 "ERROR: --png requires cairosvg.\n"
-                "  Install it:  pip install cairosvg\n"
+                "  Recommended: use uv run homey_flow_svg.py --png  (auto-installs cairosvg)\n"
+                "  Manual:      pip install cairosvg\n"
                 "  Also needs the libcairo2 native library:\n"
-                "    macOS:   brew install cairo\n"
                 "    Linux:   sudo apt install libcairo2-dev\n"
+                "    macOS:   brew install cairo\n"
                 "    Windows: install the GTK3 runtime from\n"
                 "             https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer"
             )
@@ -927,6 +945,7 @@ def render_flow(
     zone_lookup: dict[str, str] | None = None,
     cap_titles: "dict[str, dict[str, tuple[str, str]]] | None" = None,
     to_png: bool = False,
+    folder_lookup: dict[str, str] | None = None,
 ) -> None:
     """Render a single Homey flow as an SVG file.
 
@@ -948,7 +967,7 @@ def render_flow(
     cards: dict[str, dict] = flow.get("cards", {})
     if not cards:
         if flow.get("trigger") or flow.get("conditions") or flow.get("actions"):
-            render_standard_flow(flow, output_path, device_lookup, var_lookup, zone_lookup, cap_titles, to_png)
+            render_standard_flow(flow, output_path, device_lookup, var_lookup, zone_lookup, cap_titles, to_png, folder_lookup)
             return
         print("  ⚠ No cards in flow, skipping.", file=sys.stderr)
         return
@@ -981,7 +1000,10 @@ def render_flow(
     canvas_h = (max_bottom - min_y) + PADDING * 2 + TITLE_H
 
     # Ensure canvas is wide enough for the title bar (title + badge)
-    flow_name = flow.get("name", "Unnamed Flow")
+    raw_flow_name = flow.get("name", "Unnamed Flow")
+    _folder_id = flow.get("folder")
+    _folder_name = (folder_lookup or {}).get(_folder_id) if _folder_id else None
+    flow_name = f"{_folder_name} / {raw_flow_name}" if _folder_name else raw_flow_name
     enabled_flag = flow.get("enabled", True)
     _badge_len = len("ENABLED" if enabled_flag else "DISABLED")
     title_w = PADDING + len(flow_name) * 11 + _badge_len * 8 + 80
@@ -1013,7 +1035,7 @@ def render_flow(
             svg.circle(gx, gy, 0.8, fill=GRID_COLOR, opacity="0.5")
 
     # ── Title bar ──
-    name = flow.get("name", "Unnamed Flow")
+    name = flow_name  # already resolved with folder prefix above
     enabled = flow.get("enabled", True)
     badge = "ENABLED" if enabled else "DISABLED"
     badge_color = "#2ECC71" if enabled else "#E74C3C"
@@ -1070,7 +1092,7 @@ def render_flow(
         else:
             _draw_wires(card.get("outputTrue"),  CONN_TRUE,  0)
             _draw_wires(card.get("outputFalse"), CONN_FALSE, 0)
-        _draw_wires(card.get("outputError"), CONN_ERROR, 52 - ch / 2)
+        _draw_wires(card.get("outputError"), CONN_ERROR, min(52, ch - 4) - ch / 2)
 
     svg.group_close()
 
@@ -1191,7 +1213,7 @@ def render_flow(
                 )
 
             # Disabled overlay
-            if ctype == "trigger" and not flow.get("enabled", True):
+            if not flow.get("enabled", True):
                 svg.rect(x, y, cw, ch, rx=CARD_RADIUS,
                          fill="#1E1E2E", opacity="0.5")
 
@@ -1239,6 +1261,7 @@ def render_standard_flow(
     zone_lookup: dict[str, str] | None = None,
     cap_titles: "dict[str, dict[str, tuple[str, str]]] | None" = None,
     to_png: bool = False,
+    folder_lookup: dict[str, str] | None = None,
 ) -> None:
     """Render a standard (non-advanced) Homey flow as a 2-column SVG."""
     SVG_W = 640
@@ -1311,20 +1334,28 @@ def render_standard_flow(
         sections.append(("Then actions", section_y, cards_in))
 
     svg_h = y_cursor + 30
-    svg = SVGBuilder(SVG_W, svg_h)
+    # Resolve title with optional folder prefix
+    raw_name = flow.get("name", "Unnamed Flow")
+    _folder_id = flow.get("folder")
+    _folder_name = (folder_lookup or {}).get(_folder_id) if _folder_id else None
+    name = f"{_folder_name} / {raw_name}" if _folder_name else raw_name
+    enabled = flow.get("enabled", True)
+    badge = "ENABLED" if enabled else "DISABLED"
+    badge_color = "#2ECC71" if enabled else "#E74C3C"
+    # Ensure canvas is wide enough for the title bar
+    _badge_len = len(badge)
+    title_w = LABEL_X + len(name) * 9 + _badge_len * 8 + 80
+    canvas_w = max(SVG_W, title_w)  # ensure title fits
+    svg = SVGBuilder(canvas_w, svg_h)
     svg.add_def(
         '<filter id="shadow" x="-4%" y="-4%" width="112%" height="112%">'
         '<feDropShadow dx="1" dy="2" stdDeviation="3" '
         'flood-color="#000" flood-opacity="0.35"/>'
         "</filter>"
     )
-    svg.rect(0, 0, SVG_W, svg_h, fill=CANVAS_BG)
+    svg.rect(0, 0, canvas_w, svg_h, fill=CANVAS_BG)
 
-    # Title
-    name = flow.get("name", "Unnamed Flow")
-    enabled = flow.get("enabled", True)
-    badge = "ENABLED" if enabled else "DISABLED"
-    badge_color = "#2ECC71" if enabled else "#E74C3C"
+    # Title (name, badge, badge_color computed above)
 
     svg.text(
         name, LABEL_X, 30,
@@ -1377,10 +1408,14 @@ def render_standard_flow(
                 max_chars=body_max_chars, max_lines=6, line_h=14,
                 fill=TEXT_LIGHT, font_size="11.5", font_family=FONT,
             )
+            # Disabled overlay
+            if not flow.get("enabled", True):
+                svg.rect(CARD_X, card_y, CARD_W, c_h, rx=CARD_RADIUS,
+                         fill="#1E1E2E", opacity="0.5")
 
     written = _write_output(svg.render(), Path(output_path), to_png)
     n_cards = (1 if trigger_card else 0) + len(condition_cards) + len(action_cards)
-    print(f"  ✓ {written}  ({SVG_W}×{svg_h:.0f}px, {n_cards} cards [standard flow])")
+    print(f"  ✓ {written}  ({canvas_w}×{svg_h:.0f}px, {n_cards} cards [standard flow])")
 
 
 # ─── CLI Entry Point ─────────────────────────────────────────────────
@@ -1437,6 +1472,15 @@ def main() -> None:
         action="store_true",
         default=False,
         help="Convert output to PNG instead of SVG (requires cairosvg + libcairo2)",
+    )
+    ap.add_argument(
+        "--filter",
+        metavar="TEXT",
+        default=None,
+        help=(
+            "Only render flows whose name contains TEXT (case-insensitive). "
+            "Example: --filter kitchen"
+        ),
     )
     args = ap.parse_args()
 
@@ -1501,6 +1545,22 @@ def main() -> None:
     if zone_lookup:
         print(f"[INFO] Loaded {len(zone_lookup) // 2} zone name(s) from {zones_dir}")
 
+    # Auto-discover flow_folders directory
+    folders_dir: Path | None = None
+    if args.inputs:
+        for input_path in args.inputs:
+            p = Path(input_path)
+            if p.parent.name and "_" in p.parent.name:
+                timestamp = p.parent.name
+                auto_folders = Path(__file__).parent / "flow_folders" / timestamp
+                if auto_folders.exists():
+                    folders_dir = auto_folders
+                    break
+
+    folder_lookup = _build_folder_lookup(folders_dir) if folders_dir else {}
+    if folder_lookup:
+        print(f"[INFO] Loaded {len(folder_lookup)} folder name(s) from {folders_dir}")
+
     # ── Consolidated auto-discovery warning ──────────────────────────────
     # Warn only when a dir was NOT supplied explicitly AND auto-discovery
     # also failed to find it (so the user knows names will be unresolved).
@@ -1536,6 +1596,10 @@ def main() -> None:
 
         print(f"  → {flow.get('name', p.stem)}")
 
+        if args.filter and args.filter.lower() not in flow.get("name", "").lower():
+            print(f"  ⏭  Skipped (filter): {flow.get('name', p.name)}")
+            continue
+
         if args.output:
             out = args.output
         elif args.output_dir:
@@ -1545,7 +1609,7 @@ def main() -> None:
         else:
             out = str(p.with_suffix(".svg"))
 
-        render_flow(flow, out, device_lookup=device_lookup or None, var_lookup=var_lookup or None, zone_lookup=zone_lookup or None, cap_titles=cap_titles or None, to_png=args.png)
+        render_flow(flow, out, device_lookup=device_lookup or None, var_lookup=var_lookup or None, zone_lookup=zone_lookup or None, cap_titles=cap_titles or None, to_png=args.png, folder_lookup=folder_lookup or None)
 
 
 if __name__ == "__main__":

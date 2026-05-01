@@ -118,11 +118,15 @@ class BackupResult:
     error_details: list[str] = field(default_factory=list)
 ```
 
+#### `_backup_items()` shared helper
+
+All five `backup_*` functions (`backup_devices`, `backup_flows`, `backup_flow_folders`, `backup_zones`, `backup_variables`) delegate the common write loop to a shared `_backup_items()` helper. The helper handles: mkdir guard, iteration over items, JSON file write, and error collection into `BackupResult`. Each `backup_*` function is only responsible for the API call(s), any pre-processing (e.g. combining normal + advanced flows, fetching BLL variables), and computing the output filename per item. `output_dir` is passed as a parameter — there are no module-level `*_DIR` globals.
+
 ### Error handling & exit codes
 
 - Missing env vars (`HOMEY_API_URL`, `HOMEY_API_TOKEN`) → `sys.exit(1)` with message
 - Connection error / timeout / non-200 response → `sys.exit(1)` immediately
-- Backup directory already exists → `sys.exit(1)` (prevents accidental overwrite)
+- Backup directory already exists → `sys.exit(1)` (prevents accidental overwrite); pass `--force` to override
 - Individual file write failure → logged to `BackupResult.error_details`, script continues
 - Items without an ID → skipped with warning
 
@@ -142,9 +146,7 @@ After a factory reset + device re-pair, flows referencing old device UUIDs will 
 
 ### Known code issues
 
-| Issue | Location | Impact |
-|---|---|---|
-| `_prompt_overwrite()` is never called | `backup.py:64–94` | The function exists and prompts the user before overwriting, but all four category backup functions bypass it and call `sys.exit(1)` directly on directory collision. It is dead code — either wire it into each backup function or remove it. |
+No known dead-code or logic issues at this time.
 
 ### Environment variables
 
@@ -168,7 +170,7 @@ Common errors and fixes:
 | `HTTP 401` | Token expired or wrong | Generate a new PAT in the Homey app |
 | `HTTP 404` on BLL endpoint | Better Logic Library app not installed | Expected — BLL backup will report `0 saved`, which is fine |
 | `Cannot connect` / timeout | Wrong IP or machine not on the same LAN | Verify `HOMEY_API_URL`; check both devices are on the same subnet |
-| `Backup directory already exists` | Script ran twice in the same minute | Delete the directory or wait one minute |
+| `Backup directory already exists` | Script ran twice in the same minute | Delete the directory, wait one minute, or re-run with `--force` to overwrite |
 | Category shows `0 saved` | Token lacks permission for that category | Re-generate token and grant all permissions |
 
 ---
@@ -274,7 +276,9 @@ def main() -> None:
 | `--devices-dir` | str | auto-discovered | Directory of device backup JSONs for name resolution |
 | `--zones-dir` | str | auto-discovered | Directory of zone backup JSONs for name resolution |
 | `--variables-dir` | str | auto-discovered | Directory of variable backup JSONs for token resolution |
+| `--filter` | str | None | Only render flows whose name contains TEXT (case-insensitive), e.g. `--filter kitchen` |
 | `--png` | flag | False | Convert output to PNG (requires `cairosvg` + `libcairo2`) |
+| `--version` | flag | — | Print version and exit |
 
 ### Name resolution
 
