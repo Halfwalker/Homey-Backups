@@ -20,6 +20,7 @@ This script is intended to be run with [uv](https://github.com/astral-sh/uv):
 ---
 """
 
+import argparse
 import json
 import pathlib
 import sys
@@ -42,6 +43,7 @@ try:
 except ImportError:
     _CLIPBOARD_AVAILABLE = False
 
+__version__ = "0.1.0"
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -222,7 +224,8 @@ def _copy_to_clipboard(text: str) -> bool:
     try:
         pyperclip.copy(text)
         return True
-    except Exception:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
+        print(f"[DEBUG] Clipboard failed: {exc}", file=sys.stderr)
         return False
 
 
@@ -241,7 +244,7 @@ def _choose_category() -> str:
     """Ask the user which backup category to browse.
 
 Returns:
-    One of: 'device', 'flow', 'zone', or 'variable'.
+    One of: 'device', 'flow', 'flow_folder', 'zone', or 'variable'.
 """
     answers = inquirer.prompt(
         [
@@ -362,6 +365,10 @@ def _present_item(item: dict, category: str) -> None:
 
 def main() -> None:
     """Interactive restore workflow — browse backups, select items, copy to clipboard."""
+    ap = argparse.ArgumentParser(description="Homey Restore — browse backups and copy items to clipboard")
+    ap.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    ap.parse_args()
+
     _banner()
 
     while True:
