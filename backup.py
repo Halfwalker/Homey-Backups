@@ -48,6 +48,15 @@ class BackupResult:
         return self.saved + self.skipped + self.errors
 
 
+class HomeyAPIError(Exception):
+    """Raised when a Homey Pro API request fails (network error, timeout, or non-200 response).
+
+    Callers should catch this and record it in BackupResult.error_details rather than
+    letting it propagate — this allows the backup to continue to other categories even
+    if one API call fails.
+    """
+
+
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
@@ -103,18 +112,14 @@ class HomeyAPI:
         try:
             resp = self._http.get(url, timeout=self.timeout)
         except requests.exceptions.ConnectionError:
-            print(f"[ERROR] Cannot connect to Homey at {self.base_url}", file=sys.stderr)
-            sys.exit(1)
+            raise HomeyAPIError(f"Cannot connect to Homey at {self.base_url}: {url}")
         except requests.exceptions.Timeout:
-            print(f"[ERROR] Request timed out: {url}", file=sys.stderr)
-            sys.exit(1)
+            raise HomeyAPIError(f"Request timed out: {url}")
         except requests.exceptions.RequestException as exc:
-            print(f"[ERROR] HTTP error: {exc}", file=sys.stderr)
-            sys.exit(1)
+            raise HomeyAPIError(f"HTTP error fetching {url}: {exc}")
 
         if resp.status_code != 200:
-            print(f"[ERROR] Homey API returned HTTP {resp.status_code} for {url}", file=sys.stderr)
-            sys.exit(1)
+            raise HomeyAPIError(f"Homey API returned HTTP {resp.status_code} for {url}")
 
         return resp.json()
 
@@ -192,12 +197,7 @@ class HomeyAPI:
 # Backup logic — devices
 # ---------------------------------------------------------------------------
 
-# Date-coded backup directory (YYYY-MM-DD_HH-mm)
-NOW_STR = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
-DEVICES_DIR = pathlib.Path(__file__).parent / "devices" / NOW_STR
-
-
-def backup_devices(api: HomeyAPI) -> BackupResult:
+def backup_devices(api: HomeyAPI, output_dir: pathlib.Path) -> BackupResult:
     """
     Fetch all devices from Homey via the local REST API and save each as a JSON file.
 
@@ -206,14 +206,21 @@ def backup_devices(api: HomeyAPI) -> BackupResult:
     Returns a BackupResult with counts and the output directory.
     """
     print("\n── Backing up devices ──────────────────────────────────────────")
-    result = BackupResult(category="Devices", output_dir=DEVICES_DIR.resolve())
+    result = BackupResult(category="Devices", output_dir=output_dir.resolve())
 
-    devices = api.get_devices()
+    try:
+        devices = api.get_devices()
+    except HomeyAPIError as exc:
+        result.errors += 1
+        result.error_details.append(str(exc))
+        result.note = "API call failed"
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return result
 
-    if DEVICES_DIR.exists():
-        print(f"[ERROR] Backup directory already exists: {DEVICES_DIR}", file=sys.stderr)
+    if output_dir.exists():
+        print(f"[ERROR] Backup directory already exists: {output_dir}", file=sys.stderr)
         sys.exit(1)
-    DEVICES_DIR.mkdir(parents=True, exist_ok=False)
+    output_dir.mkdir(parents=True, exist_ok=False)
 
     if not devices:
         print("[WARN] No devices returned by API.")
@@ -231,7 +238,7 @@ def backup_devices(api: HomeyAPI) -> BackupResult:
 
         slug = slugify(name, separator="-") if name else "unnamed"
         filename = f"{slug}-{device_id}.json"
-        filepath = DEVICES_DIR / filename
+        filepath = output_dir / filename
 
         try:
             filepath.write_text(
@@ -252,11 +259,7 @@ def backup_devices(api: HomeyAPI) -> BackupResult:
 # Backup logic — flows
 # ---------------------------------------------------------------------------
 
-FLOWS_DIR = pathlib.Path(__file__).parent / "flows" / NOW_STR
-FLOW_FOLDERS_DIR = pathlib.Path(__file__).parent / "flow_folders" / NOW_STR
-
-
-def backup_flows(api: HomeyAPI) -> BackupResult:
+def backup_flows(api: HomeyAPI, output_dir: pathlib.Path) -> BackupResult:
     """
     Fetch all normal and advanced flows from Homey via the local REST API and save
     each as a JSON file.
@@ -267,18 +270,25 @@ def backup_flows(api: HomeyAPI) -> BackupResult:
     Returns a BackupResult with counts and the output directory.
     """
     print("\n── Backing up flows ────────────────────────────────────────────")
-    result = BackupResult(category="Flows", output_dir=FLOWS_DIR.resolve())
+    result = BackupResult(category="Flows", output_dir=output_dir.resolve())
 
-    normal_flows = api.get_flows()
+    try:
+        normal_flows = api.get_flows()
+        advanced_flows = api.get_advanced_flows()
+    except HomeyAPIError as exc:
+        result.errors += 1
+        result.error_details.append(str(exc))
+        result.note = "API call failed"
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return result
 
-    if FLOWS_DIR.exists():
-        print(f"[ERROR] Backup directory already exists: {FLOWS_DIR}", file=sys.stderr)
+    if output_dir.exists():
+        print(f"[ERROR] Backup directory already exists: {output_dir}", file=sys.stderr)
         sys.exit(1)
-    FLOWS_DIR.mkdir(parents=True, exist_ok=False)
+    output_dir.mkdir(parents=True, exist_ok=False)
+
     for flow in normal_flows:
         flow["flow_type"] = "normal"
-
-    advanced_flows = api.get_advanced_flows()
     for flow in advanced_flows:
         flow["flow_type"] = "advanced"
 
@@ -300,7 +310,7 @@ def backup_flows(api: HomeyAPI) -> BackupResult:
 
         slug = slugify(name, separator="-") if name else "unnamed"
         filename = f"{slug}-{flow_id}.json"
-        filepath = FLOWS_DIR / filename
+        filepath = output_dir / filename
 
         try:
             filepath.write_text(
@@ -321,7 +331,7 @@ def backup_flows(api: HomeyAPI) -> BackupResult:
 # Backup logic — flow folders
 # ---------------------------------------------------------------------------
 
-def backup_flow_folders(api: HomeyAPI) -> BackupResult:
+def backup_flow_folders(api: HomeyAPI, output_dir: pathlib.Path) -> BackupResult:
     """
     Fetch all flow folders from Homey via the local REST API and save each as
     a JSON file.  Folder backup is required for full flow restore — each flow
@@ -332,14 +342,21 @@ def backup_flow_folders(api: HomeyAPI) -> BackupResult:
     Returns a BackupResult with counts and the output directory.
     """
     print("\n── Backing up flow folders ─────────────────────────────────────")
-    result = BackupResult(category="Flow Folders", output_dir=FLOW_FOLDERS_DIR.resolve())
+    result = BackupResult(category="Flow Folders", output_dir=output_dir.resolve())
 
-    folders = api.get_flow_folders()
+    try:
+        folders = api.get_flow_folders()
+    except HomeyAPIError as exc:
+        result.errors += 1
+        result.error_details.append(str(exc))
+        result.note = "API call failed"
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return result
 
-    if FLOW_FOLDERS_DIR.exists():
-        print(f"[ERROR] Backup directory already exists: {FLOW_FOLDERS_DIR}", file=sys.stderr)
+    if output_dir.exists():
+        print(f"[ERROR] Backup directory already exists: {output_dir}", file=sys.stderr)
         sys.exit(1)
-    FLOW_FOLDERS_DIR.mkdir(parents=True, exist_ok=False)
+    output_dir.mkdir(parents=True, exist_ok=False)
 
     if not folders:
         print("[WARN] No flow folders returned by API (all flows may be in the root).")
@@ -357,7 +374,7 @@ def backup_flow_folders(api: HomeyAPI) -> BackupResult:
 
         slug = slugify(name, separator="-") if name else "unnamed"
         filename = f"{slug}-{folder_id}.json"
-        filepath = FLOW_FOLDERS_DIR / filename
+        filepath = output_dir / filename
 
         try:
             filepath.write_text(
@@ -378,10 +395,7 @@ def backup_flow_folders(api: HomeyAPI) -> BackupResult:
 # Backup logic — zones
 # ---------------------------------------------------------------------------
 
-ZONES_DIR = pathlib.Path(__file__).parent / "zones" / NOW_STR
-
-
-def backup_zones(api: HomeyAPI) -> BackupResult:
+def backup_zones(api: HomeyAPI, output_dir: pathlib.Path) -> BackupResult:
     """
     Fetch all zones from Homey via the local REST API and save each as a JSON file.
 
@@ -390,14 +404,21 @@ def backup_zones(api: HomeyAPI) -> BackupResult:
     Returns a BackupResult with counts and the output directory.
     """
     print("\n── Backing up zones ────────────────────────────────────────────")
-    result = BackupResult(category="Zones", output_dir=ZONES_DIR.resolve())
+    result = BackupResult(category="Zones", output_dir=output_dir.resolve())
 
-    zones = api.get_zones()
+    try:
+        zones = api.get_zones()
+    except HomeyAPIError as exc:
+        result.errors += 1
+        result.error_details.append(str(exc))
+        result.note = "API call failed"
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return result
 
-    if ZONES_DIR.exists():
-        print(f"[ERROR] Backup directory already exists: {ZONES_DIR}", file=sys.stderr)
+    if output_dir.exists():
+        print(f"[ERROR] Backup directory already exists: {output_dir}", file=sys.stderr)
         sys.exit(1)
-    ZONES_DIR.mkdir(parents=True, exist_ok=False)
+    output_dir.mkdir(parents=True, exist_ok=False)
 
     if not zones:
         print("[WARN] No zones returned by API.")
@@ -415,7 +436,7 @@ def backup_zones(api: HomeyAPI) -> BackupResult:
 
         slug = slugify(name, separator="-") if name else "unnamed"
         filename = f"{slug}-{zone_id}.json"
-        filepath = ZONES_DIR / filename
+        filepath = output_dir / filename
 
         try:
             filepath.write_text(
@@ -436,10 +457,7 @@ def backup_zones(api: HomeyAPI) -> BackupResult:
 # Backup logic — logic variables (Homey Logic + Better Logic Library)
 # ---------------------------------------------------------------------------
 
-VARIABLES_DIR = pathlib.Path(__file__).parent / "variables" / NOW_STR
-
-
-def backup_logic_variables(api: HomeyAPI) -> BackupResult:
+def backup_logic_variables(api: HomeyAPI, output_dir: pathlib.Path) -> BackupResult:
     """
     Fetch all Homey Logic variables and BLL (Better Logic Library) variables,
     merge them, and save each as a JSON file.
@@ -451,20 +469,28 @@ def backup_logic_variables(api: HomeyAPI) -> BackupResult:
     Returns a BackupResult with counts and the output directory.
     """
     print("\n── Backing up logic variables ──────────────────────────────────")
-    result = BackupResult(category="Variables", output_dir=VARIABLES_DIR.resolve())
+    result = BackupResult(category="Variables", output_dir=output_dir.resolve())
 
-    logic_vars = api.get_logic_variables()
-    bll_vars = api.get_bll_variables()
+    try:
+        logic_vars = api.get_logic_variables()
+        bll_vars = api.get_bll_variables()
+    except HomeyAPIError as exc:
+        result.errors += 1
+        result.error_details.append(str(exc))
+        result.note = "API call failed"
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return result
+
     for item in logic_vars:
         item["source"] = "logic"
     for item in bll_vars:
         item["source"] = "bll"
     variables = logic_vars + bll_vars
 
-    if VARIABLES_DIR.exists():
-        print(f"[ERROR] Backup directory already exists: {VARIABLES_DIR}", file=sys.stderr)
+    if output_dir.exists():
+        print(f"[ERROR] Backup directory already exists: {output_dir}", file=sys.stderr)
         sys.exit(1)
-    VARIABLES_DIR.mkdir(parents=True, exist_ok=False)
+    output_dir.mkdir(parents=True, exist_ok=False)
 
     if not variables:
         print("[WARN] No logic variables returned by API.")
@@ -492,7 +518,7 @@ def backup_logic_variables(api: HomeyAPI) -> BackupResult:
             slug = slugify(name, separator="-") if name else "unnamed"
             filename = f"{slug}-{var_id}.json"
 
-        filepath = VARIABLES_DIR / filename
+        filepath = output_dir / filename
 
         try:
             filepath.write_text(
@@ -573,7 +599,7 @@ def _print_summary(results: list[BackupResult]) -> None:
 
 
 def main() -> None:
-    """Validate config, connect to Homey, and run all four backup categories."""
+    """Validate config, connect to Homey, and run all five backup categories."""
     if not HOMEY_API_URL:
         print("[ERROR] HOMEY_API_URL environment variable is not set.", file=sys.stderr)
         print("        Set it to your Homey Pro's IP, e.g.: export HOMEY_API_URL=http://192.168.1.100", file=sys.stderr)
@@ -586,12 +612,15 @@ def main() -> None:
     print(f"Connecting to Homey Pro at {HOMEY_API_URL} …\n")
     api = HomeyAPI(HOMEY_API_URL, HOMEY_API_TOKEN)
 
+    now_str = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
+    base = pathlib.Path(__file__).parent
+
     results: list[BackupResult] = []
-    results.append(backup_devices(api))
-    results.append(backup_flows(api))
-    results.append(backup_flow_folders(api))
-    results.append(backup_zones(api))
-    results.append(backup_logic_variables(api))
+    results.append(backup_devices(api, output_dir=base / "devices" / now_str))
+    results.append(backup_flows(api, output_dir=base / "flows" / now_str))
+    results.append(backup_flow_folders(api, output_dir=base / "flow_folders" / now_str))
+    results.append(backup_zones(api, output_dir=base / "zones" / now_str))
+    results.append(backup_logic_variables(api, output_dir=base / "variables" / now_str))
 
     _print_summary(results)
 

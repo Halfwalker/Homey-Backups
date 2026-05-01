@@ -1,0 +1,120 @@
+"""
+Tests for Critical Fix 1.3 — SVG batch mode must not abort on a single corrupt flow.
+
+Run:  pytest tests/test_svg_critical.py -v
+"""
+import json
+import pathlib
+from unittest.mock import patch
+import pytest
+
+
+SIMPLE_ADVANCED_FLOW = {
+    "id": "good-flow-1",
+    "name": "Good Flow",
+    "enabled": True,
+    "flow_type": "advanced",
+    "cards": {
+        "card-1": {
+            "type": "trigger",
+            "id": "homey:device:abc:alarm_motion",
+            "x": 100,
+            "y": 100,
+            "outputSuccess": [],
+        }
+    },
+}
+
+SIMPLE_STANDARD_FLOW = {
+    "id": "good-flow-2",
+    "name": "Good Standard Flow",
+    "enabled": True,
+    "flow_type": "normal",
+    "trigger": {"id": "homey:manager:cron:time_exactly", "args": {"time": "08:00"}},
+    "conditions": [],
+    "actions": [],
+}
+
+
+class TestSVGBatchCritical:
+    """render_flow() exceptions in batch mode must be caught, not propagate."""
+
+    def test_corrupt_flow_does_not_abort_batch(self, tmp_path):
+        """A RuntimeError from render_flow() must be caught; other flows must still render."""
+        import homey_flow_svg as svg
+
+        good_flow_path = tmp_path / "good-flow-1.json"
+        bad_flow_path = tmp_path / "bad-flow.json"
+
+        good_flow_path.write_text(json.dumps(SIMPLE_ADVANCED_FLOW), encoding="utf-8")
+        # Bad JSON — will cause JSONDecodeError on load
+        bad_flow_path.write_text("{ this is not valid json }", encoding="utf-8")
+
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+
+        rendered: list[str] = []
+        errors: list[str] = []
+
+        for fpath in [good_flow_path, bad_flow_path]:
+            p = pathlib.Path(fpath)
+            try:
+                flow = json.loads(p.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                errors.append(str(exc))
+                continue
+
+            out = str(out_dir / p.with_suffix(".svg").name)
+            try:
+                svg.render_flow(flow, out)
+                rendered.append(p.name)
+            except Exception as exc:  # noqa: BLE001
+                errors.append(str(exc))
+
+        # Good flow must have rendered despite the bad one
+        assert (out_dir / "good-flow-1.svg").exists(), (
+            "Good flow was not rendered — bad flow should not abort the batch"
+        )
+
+    def test_render_flow_exception_caught_in_cli_batch(self, tmp_path):
+        """The CLI main() batch loop must catch render_flow() exceptions and continue."""
+        import homey_flow_svg as svg
+
+        good_path = tmp_path / "good.json"
+        good_path.write_text(json.dumps(SIMPLE_STANDARD_FLOW), encoding="utf-8")
+
+        bad_path = tmp_path / "bad.json"
+        bad_path.write_text(json.dumps({
+            "id": "bad",
+            "name": "Bad Flow",
+            "enabled": True,
+            "cards": {"broken-card": {"type": "trigger"}},  # missing x, y
+        }), encoding="utf-8")
+
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+
+        # Run main() with both flows; should not raise
+        import sys
+        argv_backup = sys.argv
+        sys.argv = [
+            "homey_flow_svg.py",
+            str(good_path),
+            str(bad_path),
+            "-d", str(out_dir),
+        ]
+        try:
+            # Should complete without raising SystemExit or unhandled Exception
+            svg.main()
+        except SystemExit as exc:
+            # Only acceptable SystemExit is 0 (success) or argparse help
+            assert exc.code == 0 or exc.code is None, (
+                f"main() exited with code {exc.code} — should continue past bad flows"
+            )
+        finally:
+            sys.argv = argv_backup
+
+        # Good flow must have rendered
+        assert (out_dir / "good.svg").exists(), (
+            "Good standard flow was not rendered — bad flow should not abort the batch"
+        )
