@@ -206,11 +206,11 @@ def _load_items(directory: pathlib.Path) -> list[dict]:
 
 
 def _filter_items(items: list[dict], query: str) -> list[dict]:
-    """Return items whose name contains *query* (case-insensitive)."""
+    """Return items whose name or id contains *query* (case-insensitive)."""
     if not query:
         return items
     q = query.strip().lower()
-    return [i for i in items if q in i["name"].lower()]
+    return [i for i in items if q in i["name"].lower() or q in i.get("id", "").lower()]
 
 
 def _copy_to_clipboard(text: str) -> bool:
@@ -329,6 +329,14 @@ def _present_item(item: dict, category: str) -> None:
     # Always offer clipboard
     content_str = json.dumps(item["data"], indent=2, ensure_ascii=False)
 
+    # Show a truncated JSON preview
+    preview_lines = content_str.splitlines()
+    max_preview = 20
+    preview = "\n".join(f"    {line}" for line in preview_lines[:max_preview])
+    if len(preview_lines) > max_preview:
+        preview += f"\n    … ({len(preview_lines) - max_preview} more lines)"
+    print(f"\n  Preview:\n{preview}\n")
+
     copy_choices = ["Yes, copy JSON to clipboard", "No thanks"]
     if not _CLIPBOARD_AVAILABLE:
         copy_choices = ["No thanks (pyperclip not installed — pip install pyperclip)"]
@@ -356,7 +364,18 @@ def _present_item(item: dict, category: str) -> None:
             )
 
     print()
-    print(IMPORT_INSTRUCTIONS[category])
+    # For flows, pick endpoint based on flow_type
+    if category == "flow" and item["data"].get("flow_type") == "advanced":
+        instructions = IMPORT_INSTRUCTIONS["flow"].replace(
+            "POST /api/manager/flow/flow",
+            "POST /api/manager/flow/advancedflow",
+        ).replace(
+            "── How to re-import a FLOW into Homey ────────────────────────────────",
+            "── How to re-import an ADVANCED FLOW into Homey ─────────────────────",
+        )
+        print(instructions)
+    else:
+        print(IMPORT_INSTRUCTIONS[category])
 
 
 # ---------------------------------------------------------------------------
