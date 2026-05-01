@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.11"
+# dependencies = []
+# ///
+# Note: --png requires cairosvg. Run with: uv run --with cairosvg homey_flow_svg.py [args]
 """
 homey_flow_svg.py — Homey Flow → SVG/PNG Visualizer
 
@@ -29,6 +34,10 @@ try:
     import cairosvg as _cairosvg
 except ImportError:
     _cairosvg = None
+
+# ─── Version ─────────────────────────────────────────────────────────
+
+__version__ = "0.1.0"
 
 # ─── Homey Visual Constants ──────────────────────────────────────────
 
@@ -304,6 +313,15 @@ def _resolve_trigger_refs(
     return _re.sub(r"\[\[trigger::([^:]+)::([^\]]+)\]\]", _sub, text)
 
 
+_UUID_RE = _re.compile(r"[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}")
+
+
+def _stem_uuid(stem: str) -> str | None:
+    """Extract a UUID from a filename stem (e.g. 'my-device-<uuid>'), or return None."""
+    m = _UUID_RE.search(stem)
+    return m.group(0) if m else None
+
+
 def _build_variable_lookup(variables_dir: Path) -> dict[str, str]:
     """Scan *variables_dir* for backup JSON files and return a mapping of
     variable_uuid → human_name (for Homey Logic vars) and
@@ -321,7 +339,7 @@ def _build_variable_lookup(variables_dir: Path) -> dict[str, str]:
         name = data.get("name") or data.get("title") or ""
         if not name:
             continue
-        var_id = data.get("id") or data.get("_id") or "-".join(fpath.stem.rsplit("-", 5)[-5:])
+        var_id = data.get("id") or data.get("_id") or _stem_uuid(fpath.stem)
         if var_id:
             lookup[var_id] = name
     return lookup
@@ -724,8 +742,8 @@ def _build_device_lookup(devices_dir: Path) -> dict[str, str]:
         # ID may be in the filename suffix (<slug>-<uuid>.json) or in the JSON
         device_id = (
             data.get("id") or data.get("_id")
-            # fallback: last hyphen-separated segment of stem (the uuid)
-            or "-".join(fpath.stem.rsplit("-", 5)[-5:])
+            # fallback: extract UUID from filename stem (<slug>-<uuid>.json)
+            or _stem_uuid(fpath.stem)
         )
         if device_id:
             lookup[device_id] = name
@@ -775,7 +793,7 @@ def _build_zone_lookup(zones_dir: Path) -> dict[str, str]:
             continue
         zone_id = (
             data.get("id") or data.get("_id")
-            or "-".join(fpath.stem.rsplit("-", 5)[-5:])
+            or _stem_uuid(fpath.stem)
         )
         if zone_id:
             lookup[zone_id] = name
@@ -887,7 +905,11 @@ def _write_output(svg_str: str, out_path: Path, to_png: bool) -> Path:
             raise SystemExit(
                 "ERROR: --png requires cairosvg.\n"
                 "  Install it:  pip install cairosvg\n"
-                "  (also needs libcairo2: sudo apt install libcairo2)"
+                "  Also needs the libcairo2 native library:\n"
+                "    macOS:   brew install cairo\n"
+                "    Linux:   sudo apt install libcairo2-dev\n"
+                "    Windows: install the GTK3 runtime from\n"
+                "             https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer"
             )
         png_path = out_path.with_suffix(".png")
         _cairosvg.svg2png(bytestring=svg_str.encode(), write_to=str(png_path))
@@ -1022,6 +1044,8 @@ def render_flow(
         src_cy = card["_ry"] + ch / 2
         is_cond = card["type"] == "condition"
 
+        # Closure capturing src_right and src_cy from the enclosing loop iteration.
+        # Each call draws bezier wires from this card's right-side output port.
         def _draw_wires(
             targets: list[str] | None,
             color: str,
@@ -1374,6 +1398,7 @@ def main() -> None:
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    ap.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     ap.add_argument("inputs", nargs="+", help="Homey flow JSON file(s)")
     ap.add_argument("-o", "--output",
                     help="Output SVG path (single-file mode only)")
