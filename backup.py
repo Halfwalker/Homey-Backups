@@ -16,6 +16,7 @@ This script is intended to be run with [uv](https://github.com/astral-sh/uv):
 ---
 """
 
+import argparse
 import os
 import sys
 import json
@@ -25,6 +26,9 @@ from dataclasses import dataclass, field
 from typing import Optional
 from slugify import slugify
 import datetime
+
+__version__ = "0.1.0"
+
 
 
 # ---------------------------------------------------------------------------
@@ -600,6 +604,10 @@ def _print_summary(results: list[BackupResult]) -> None:
 
 def main() -> None:
     """Validate config, connect to Homey, and run all five backup categories."""
+    ap = argparse.ArgumentParser(description="Homey Backup — back up devices, flows, zones and variables via local REST API")
+    ap.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    ap.parse_args()
+
     if not HOMEY_API_URL:
         print("[ERROR] HOMEY_API_URL environment variable is not set.", file=sys.stderr)
         print("        Set it to your Homey Pro's IP, e.g.: export HOMEY_API_URL=http://192.168.1.100", file=sys.stderr)
