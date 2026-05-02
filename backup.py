@@ -523,13 +523,14 @@ def main() -> None:
 
     now_str = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
     base = pathlib.Path(__file__).parent
+    backup_root = base / "Backups" / now_str
 
     results: list[BackupResult] = []
-    results.append(backup_devices(api, output_dir=base / "devices" / now_str, force=args.force))
-    results.append(backup_flows(api, output_dir=base / "flows" / now_str, force=args.force))
-    results.append(backup_flow_folders(api, output_dir=base / "flow_folders" / now_str, force=args.force))
-    results.append(backup_zones(api, output_dir=base / "zones" / now_str, force=args.force))
-    results.append(backup_logic_variables(api, output_dir=base / "variables" / now_str, force=args.force))
+    results.append(backup_devices(api, output_dir=backup_root / "devices", force=args.force))
+    results.append(backup_flows(api, output_dir=backup_root / "flows", force=args.force))
+    results.append(backup_flow_folders(api, output_dir=backup_root / "flow_folders", force=args.force))
+    results.append(backup_zones(api, output_dir=backup_root / "zones", force=args.force))
+    results.append(backup_logic_variables(api, output_dir=backup_root / "variables", force=args.force))
 
     _print_summary(results)
 
