@@ -1,9 +1,5 @@
 # ── Backup data (generated at runtime) ──────────────────────────────────────
-devices/
-flows/
-flow_folders/
-variables/
-zones/
+Backups/
 
 # ── Generated output ─────────────────────────────────────────────────────────
 *.svg
