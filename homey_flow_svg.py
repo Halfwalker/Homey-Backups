@@ -1493,15 +1493,21 @@ def main() -> None:
     devices_dir: Path | None = Path(args.devices_dir) if args.devices_dir else None
 
     # Auto-discover devices directory if not specified
-    # Look for a matching timestamp in devices/ directory based on flow file
+    # Try new structure first: Backups/TIMESTAMP/flows/file.json → Backups/TIMESTAMP/devices/
+    # Fall back to old structure: flows/TIMESTAMP/file.json → devices/TIMESTAMP/
     if not devices_dir and args.inputs:
         for input_path in args.inputs:
             p = Path(input_path)
-            # Extract timestamp from flow path like flows/2026-04-23_11-13/flow.json
             parent = p.parent
+            # New structure: parent is "flows", grandparent is the timestamp dir
+            if parent.name == "flows" and "_" in parent.parent.name:
+                auto_devices = parent.parent / "devices"
+                if auto_devices.exists():
+                    devices_dir = auto_devices
+                    break
+            # Old structure: parent is the timestamp dir
             if parent.name and "_" in parent.name:
-                timestamp = parent.name  # e.g., "2026-04-23_11-13"
-                auto_devices = Path(__file__).parent / "devices" / timestamp
+                auto_devices = Path(__file__).parent / "devices" / parent.name
                 if auto_devices.exists():
                     devices_dir = auto_devices
                     break
@@ -1517,9 +1523,16 @@ def main() -> None:
     if not variables_dir and args.inputs:
         for input_path in args.inputs:
             p = Path(input_path)
-            if p.parent.name and "_" in p.parent.name:
-                ts = p.parent.name  # "2026-04-26_12-49"
-                auto_vars = Path(__file__).parent / "variables" / ts
+            parent = p.parent
+            # New structure: Backups/TIMESTAMP/flows/file.json → Backups/TIMESTAMP/variables/
+            if parent.name == "flows" and "_" in parent.parent.name:
+                auto_vars = parent.parent / "variables"
+                if auto_vars.exists():
+                    variables_dir = auto_vars
+                    break
+            # Old structure: flows/TIMESTAMP/file.json → variables/TIMESTAMP/
+            if parent.name and "_" in parent.name:
+                auto_vars = Path(__file__).parent / "variables" / parent.name
                 if auto_vars.exists():
                     variables_dir = auto_vars
                     break
@@ -1534,9 +1547,16 @@ def main() -> None:
     if not zones_dir and args.inputs:
         for input_path in args.inputs:
             p = Path(input_path)
-            if p.parent.name and "_" in p.parent.name:
-                timestamp = p.parent.name
-                auto_zones = Path(__file__).parent / "zones" / timestamp
+            parent = p.parent
+            # New structure: Backups/TIMESTAMP/flows/file.json → Backups/TIMESTAMP/zones/
+            if parent.name == "flows" and "_" in parent.parent.name:
+                auto_zones = parent.parent / "zones"
+                if auto_zones.exists():
+                    zones_dir = auto_zones
+                    break
+            # Old structure: flows/TIMESTAMP/file.json → zones/TIMESTAMP/
+            if parent.name and "_" in parent.name:
+                auto_zones = Path(__file__).parent / "zones" / parent.name
                 if auto_zones.exists():
                     zones_dir = auto_zones
                     break
@@ -1550,9 +1570,16 @@ def main() -> None:
     if args.inputs:
         for input_path in args.inputs:
             p = Path(input_path)
-            if p.parent.name and "_" in p.parent.name:
-                timestamp = p.parent.name
-                auto_folders = Path(__file__).parent / "flow_folders" / timestamp
+            parent = p.parent
+            # New structure: Backups/TIMESTAMP/flows/file.json → Backups/TIMESTAMP/flow_folders/
+            if parent.name == "flows" and "_" in parent.parent.name:
+                auto_folders = parent.parent / "flow_folders"
+                if auto_folders.exists():
+                    folders_dir = auto_folders
+                    break
+            # Old structure: flows/TIMESTAMP/file.json → flow_folders/TIMESTAMP/
+            if parent.name and "_" in parent.name:
+                auto_folders = Path(__file__).parent / "flow_folders" / parent.name
                 if auto_folders.exists():
                     folders_dir = auto_folders
                     break
