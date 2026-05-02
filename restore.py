@@ -51,23 +51,33 @@ __version__ = "0.1.0"
 
 _BASE = pathlib.Path(__file__).parent
 
-CATEGORY_DIRS: dict[str, pathlib.Path] = {
-    "device":       _BASE / "devices",
-    "flow":         _BASE / "flows",
-    "flow_folder":  _BASE / "flow_folders",
-    "zone":         _BASE / "zones",
-    "variable":     _BASE / "variables",
+_BACKUPS_ROOT = _BASE / "Backups"
+
+CATEGORY_SUBDIRS: dict[str, str] = {
+    "device":       "devices",
+    "flow":         "flows",
+    "flow_folder":  "flow_folders",
+    "zone":         "zones",
+    "variable":     "variables",
 }
 
 def list_backup_dates(category: str) -> list[pathlib.Path]:
-    """Return sorted list of date-coded subdirectories for *category*.
+    """Return sorted list of per-category backup directories across all timestamps.
 
-    Returns an empty list if the category backup directory does not yet exist.
+    Scans ``Backups/*/CATEGORY_NAME/`` and returns paths like
+    ``Backups/2026-04-30_21-00/devices/``, sorted by timestamp.
+    Returns an empty list if no matching backups exist.
     """
-    cat_dir = CATEGORY_DIRS[category]
-    if not cat_dir.exists():
+    subdir_name = CATEGORY_SUBDIRS[category]
+    if not _BACKUPS_ROOT.is_dir():
         return []
-    return sorted([p for p in cat_dir.iterdir() if p.is_dir()])
+    return sorted(
+        p
+        for ts_dir in _BACKUPS_ROOT.iterdir()
+        if ts_dir.is_dir() and "_" in ts_dir.name
+        for p in [ts_dir / subdir_name]
+        if p.is_dir()
+    )
 
 
 # How to import each category in Homey
@@ -401,7 +411,7 @@ def main() -> None:
         date_dirs = list_backup_dates(category)
         if not date_dirs:
             print(f"\n  [!] No {category} backups found in:")
-            print(f"      {CATEGORY_DIRS[category].resolve()}/<date-coded-dir>/\n")
+            print(f"      {_BACKUPS_ROOT.resolve()}/<timestamp>/{CATEGORY_SUBDIRS[category]}/\n")
             print(f"      Run backup.py first to create the local backups.\n")
             retry = inquirer.prompt(
                 [
@@ -419,7 +429,7 @@ def main() -> None:
                 sys.exit(0)
             continue
 
-        date_choices = [(d.name, d) for d in reversed(date_dirs)]
+        date_choices = [(d.parent.name, d) for d in reversed(date_dirs)]
         date_answer = inquirer.prompt(
             [
                 inquirer.List(
@@ -444,7 +454,7 @@ def main() -> None:
             )
             continue
 
-        print(f"\n  Found {len(items)} {category}(s) in backup {directory.name}.\n")
+        print(f"\n  Found {len(items)} {category}(s) in backup {directory.parent.name}.\n")
 
         try:
             selected = _choose_item(items, category)
