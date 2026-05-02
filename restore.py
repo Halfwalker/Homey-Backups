@@ -412,7 +412,7 @@ def main() -> None:
         if not date_dirs:
             print(f"\n  [!] No {category} backups found in:")
             print(f"      {_BACKUPS_ROOT.resolve()}/<timestamp>/{CATEGORY_SUBDIRS[category]}/\n")
-            print(f"      Run backup.py first to create the local backups.\n")
+            print("      Run backup.py first to create the local backups.\n")
             retry = inquirer.prompt(
                 [
                     inquirer.List(

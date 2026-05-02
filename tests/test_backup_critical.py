@@ -4,7 +4,6 @@ Tests for the three Critical Fixes in backup.py.
 Run:  pytest tests/test_backup_critical.py -v
 """
 import pathlib
-import json
 import sys
 from unittest.mock import MagicMock, patch
 import pytest
@@ -150,7 +149,7 @@ class TestOutputDirParameter:
         # module level at all.
         import backup
         # None of the module-level dirs should have been created just by importing
-        import importlib, sys
+        import importlib
         if "backup" in sys.modules:
             importlib.reload(backup)
         # The key assertion: backup module's *_DIR globals (if any) must not exist on disk

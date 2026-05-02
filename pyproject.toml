@@ -25,3 +25,6 @@ dev = [
     "pytest-mock>=3.14",
     "ruff>=0.4",
 ]
+
+[tool.setuptools]
+py-modules = ["backup", "restore", "homey_flow_svg"]

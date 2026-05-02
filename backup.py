@@ -228,7 +228,7 @@ def _backup_items(
     if output_dir.exists():
         if not force:
             print(f"[ERROR] Backup directory already exists: {output_dir}", file=sys.stderr)
-            print(f"  Use --force to overwrite.", file=sys.stderr)
+            print("  Use --force to overwrite.", file=sys.stderr)
             sys.exit(1)
         else:
             print(f"[WARN] Overwriting existing backup directory: {output_dir}", file=sys.stderr)

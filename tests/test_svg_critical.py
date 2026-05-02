@@ -5,8 +5,6 @@ Run:  pytest tests/test_svg_critical.py -v
 """
 import json
 import pathlib
-from unittest.mock import patch
-import pytest
 
 
 SIMPLE_ADVANCED_FLOW = {
