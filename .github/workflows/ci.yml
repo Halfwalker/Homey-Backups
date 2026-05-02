@@ -41,4 +41,24 @@ jobs:
         run: ruff check .
 
       - name: Test — pytest
-        run: pytest --tb=short
+        shell: bash
+        run: |
+          set -o pipefail
+          pytest --tb=short 2>&1 | tee /tmp/pytest-out.txt
+
+      - name: Summary
+        if: always()
+        shell: bash
+        run: |
+          echo ""
+          echo "══════════════════════════════════════"
+          echo "  CI RESULTS  (Python ${{ matrix.python-version }})"
+          echo "══════════════════════════════════════"
+          tail -4 /tmp/pytest-out.txt 2>/dev/null || echo "  (no pytest output captured)"
+          echo "══════════════════════════════════════"
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            echo "## CI Results — Python ${{ matrix.python-version }}" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            tail -4 /tmp/pytest-out.txt >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
