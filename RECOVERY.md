@@ -32,7 +32,7 @@ Be honest with yourself about what this toolchain covers. The following **cannot
 If you haven't performed the factory reset yet, verify these first:
 
 - [ ] Run `uv run backup.py` and confirm the summary shows the expected item counts
-- [ ] Check that `flows/`, `zones/`, `variables/`, `devices/` directories were created with today's timestamp
+- [ ] Check that a `Backups/` directory was created with today's timestamp and contains `flows/`, `zones/`, `variables/`, `devices/` subdirectories
 - [ ] Note your Homey's current IP address (check your router's DHCP table)
 - [ ] Copy your Personal Access Token somewhere safe, or note that you'll need to generate a new one after reset
 - [ ] Note which third-party apps you have installed (BLL, etc.)
@@ -82,7 +82,7 @@ Zones must exist before flows are imported — flow cards reference zone UUIDs d
 **Check parent/child relationships first:**
 ```bash
 # List zones from backup and look at the "parent" field
-ls zones/YYYY-MM-DD_HH-MM/
+ls Backups/YYYY-MM-DD_HH-MM/zones/
 ```
 Open a few zone JSON files and look at the `parent` field — restore zones with `"parent": null` (root zones) first, then child zones.
 
@@ -163,7 +163,7 @@ Flow folders must be recreated **before** importing flows so you can supply the 
 
 **List your backed-up folders:**
 ```bash
-ls flow_folders/YYYY-MM-DD_HH-MM/
+ls Backups/YYYY-MM-DD_HH-MM/flow_folders/
 ```
 
 **Create each folder:**
@@ -198,13 +198,13 @@ Before importing flows (Step 7), update each flow JSON's `"folder"` field from t
 curl -X POST "$HOMEY_API_URL/api/manager/flow/flow" \
   -H "Authorization: Bearer $HOMEY_API_TOKEN" \
   -H "Content-Type: application/json" \
-  -d @flows/YYYY-MM-DD_HH-MM/my-flow-name-uuid.json
+  -d @Backups/YYYY-MM-DD_HH-MM/flows/my-flow-name-uuid.json
 
 # Advanced flow
 curl -X POST "$HOMEY_API_URL/api/manager/flow/advancedflow" \
   -H "Authorization: Bearer $HOMEY_API_TOKEN" \
   -H "Content-Type: application/json" \
-  -d @flows/YYYY-MM-DD_HH-MM/my-advanced-flow-uuid.json
+  -d @Backups/YYYY-MM-DD_HH-MM/flows/my-advanced-flow-uuid.json
 ```
 
 > **Strip the `id` field** from the JSON body when creating new flows — Homey assigns a new ID. Update the `folder` field using your old→new folder UUID mapping from Step 6 (or strip it entirely to place flows in root and organise manually).

@@ -51,9 +51,9 @@ HOMEY_API_URL=http://192.168.x.x HOMEY_API_TOKEN=your-token uv run backup.py
 uv run restore.py
 
 # Render a flow as SVG (no dependencies needed)
-python homey_flow_svg.py flows/2026-04-26_14-05/my-flow-uuid.json
+python homey_flow_svg.py Backups/2026-04-26_14-05/flows/my-flow-uuid.json
 # or batch-render a whole backup run:
-python homey_flow_svg.py flows/2026-04-26_14-05/*.json -d flow-rendering/
+python homey_flow_svg.py Backups/2026-04-26_14-05/flows/*.json -d flow-rendering/
 ```
 
 Or, if you prefer a shared virtual environment (useful if you want IDE autocomplete or a persistent install):
@@ -106,11 +106,11 @@ Connects directly to the Homey Pro local REST API, fetches all devices, flows, z
 
 | Category | API endpoint | Output folder |
 |---|---|---|
-| Devices | `/api/manager/devices/device` | `devices/TIMESTAMP/` |
-| Flows | `/api/manager/flow/flow` + `/advancedflow` | `flows/TIMESTAMP/` |
-| Flow Folders | `/api/manager/flow/flowfolder` | `flow_folders/TIMESTAMP/` |
-| Zones | `/api/manager/zones/zone` | `zones/TIMESTAMP/` |
-| Variables | `/api/manager/logic/variable` + BLL app | `variables/TIMESTAMP/` |
+| Devices | `/api/manager/devices/device` | `Backups/TIMESTAMP/devices/` |
+| Flows | `/api/manager/flow/flow` + `/advancedflow` | `Backups/TIMESTAMP/flows/` |
+| Flow Folders | `/api/manager/flow/flowfolder` | `Backups/TIMESTAMP/flow_folders/` |
+| Zones | `/api/manager/zones/zone` | `Backups/TIMESTAMP/zones/` |
+| Variables | `/api/manager/logic/variable` + BLL app | `Backups/TIMESTAMP/variables/` |
 
 > **⚠️ What is NOT backed up**
 >
@@ -127,7 +127,7 @@ Connects directly to the Homey Pro local REST API, fetches all devices, flows, z
 Files are named `<slugified-name>-<id>.json`, e.g.:
 
 ```
-flows/2026-04-26_14-05/goodnight-f6417ce9-e7e0-4571-a3f7-87895a0e93e0.json
+Backups/2026-04-26_14-05/flows/goodnight-f6417ce9-e7e0-4571-a3f7-87895a0e93e0.json
 ```
 
 BLL (Better Logic) variables use a different convention: `bll-<variable-name>.json` (no UUID suffix — BLL variables are identified by name, not ID).
@@ -149,10 +149,10 @@ Each backup run creates a new timestamped directory (`YYYY-MM-DD_HH-MM`). If the
 ╔══ BACKUP SUMMARY ════════════════════════════════╗
   Category   │  Saved │ Skipped │ Errors │ Output path
   ───────────┼────────┼─────────┼────────┼─────────────────────────
-  Devices    │     42 │       0 │      0 │ .../devices/2026-04-26_14-05
-  Flows      │     38 │       0 │      0 │ .../flows/2026-04-26_14-05
-  Zones      │     16 │       0 │      0 │ .../zones/2026-04-26_14-05
-  Variables  │     12 │       0 │      0 │ .../variables/2026-04-26_14-05
+  Devices    │     42 │       0 │      0 │ .../Backups/2026-04-26_14-05/devices
+  Flows      │     38 │       0 │      0 │ .../Backups/2026-04-26_14-05/flows
+  Zones      │     16 │       0 │      0 │ .../Backups/2026-04-26_14-05/zones
+  Variables  │     12 │       0 │      0 │ .../Backups/2026-04-26_14-05/variables
 ╚══════════════════════════════════════════════════╝
 ```
 
@@ -171,7 +171,7 @@ Each backup run creates a new timestamped directory (`YYYY-MM-DD_HH-MM`). If the
 After running `backup.py` for the first time, confirm all of the following before relying on this backup for recovery:
 
 - [ ] The summary shows **non-zero counts** for every category you use
-- [ ] Timestamped directories exist: `flows/YYYY-MM-DD_HH-MM/`, `zones/…`, etc.
+- [ ] Timestamped directories exist: `Backups/YYYY-MM-DD_HH-MM/flows/`, `Backups/YYYY-MM-DD_HH-MM/zones/`, etc.
 - [ ] Open any flow JSON — it should contain a `cards` object (advanced flow) or `trigger`/`conditions`/`actions` (standard flow)
 - [ ] `uv run restore.py` can browse the backup — choose a category, select today's timestamp, and items appear
 
@@ -237,7 +237,7 @@ After a factory reset, restore in this exact order to avoid broken references:
 - Logic: `POST /api/manager/logic/variable` or `PUT /api/manager/logic/variable/<id>`
 - BLL: via the BLL app settings page or `PUT /api/app/net.i-dev.betterlogic/variable/<name>`
 
-> **Restoring flow folders:** Flow folder structure is backed up to `flow_folders/TIMESTAMP/`. Restore folders **before** flows so you can supply the correct folder ID in each flow's JSON during import. See [RECOVERY.md](./RECOVERY.md) for the full ordered procedure.
+> **Restoring flow folders:** Flow folder structure is backed up to `Backups/TIMESTAMP/flow_folders/`. Restore folders **before** flows so you can supply the correct folder ID in each flow's JSON during import. See [RECOVERY.md](./RECOVERY.md) for the full ordered procedure.
 
 ---
 
@@ -249,16 +249,16 @@ Renders Homey flow JSON backups — both standard and advanced flows — as SVG 
 
 ```bash
 # Single flow (SVG written alongside the JSON)
-python homey_flow_svg.py flows/2026-04-26_14-05/my-flow-uuid.json
+python homey_flow_svg.py Backups/2026-04-26_14-05/flows/my-flow-uuid.json
 
 # Specify output path
-python homey_flow_svg.py flows/2026-04-26_14-05/my-flow-uuid.json -o diagram.svg
+python homey_flow_svg.py Backups/2026-04-26_14-05/flows/my-flow-uuid.json -o diagram.svg
 
 # Batch render all flows from a backup run
-python homey_flow_svg.py flows/2026-04-26_14-05/*.json -d flow-rendering/
+python homey_flow_svg.py Backups/2026-04-26_14-05/flows/*.json -d flow-rendering/
 ```
 
-Device, zone, and variable names are **auto-resolved** from matching backup timestamp directories — provided the flow files are at `flows/TIMESTAMP/` and the corresponding backup dirs (`devices/TIMESTAMP/`, `zones/TIMESTAMP/`, `variables/TIMESTAMP/`) exist at the same level. If you ran `backup.py` before rendering in the standard layout, names are picked up automatically. Otherwise, use `--devices-dir`, `--zones-dir`, or `--variables-dir` to specify paths manually.
+Device, zone, and variable names are **auto-resolved** from matching backup timestamp directories — provided the flow files are at `Backups/TIMESTAMP/flows/` and the corresponding backup dirs (`Backups/TIMESTAMP/devices/`, `Backups/TIMESTAMP/zones/`, `Backups/TIMESTAMP/variables/`) exist at the same level. If you ran `backup.py` before rendering in the standard layout, names are picked up automatically. Otherwise, use `--devices-dir`, `--zones-dir`, or `--variables-dir` to specify paths manually.
 
 #### What it renders
 
@@ -293,16 +293,13 @@ Homey_Backups/
 ├── pyproject.toml       ← Project metadata and shared dependencies (uv)
 ├── README.md            ← This file
 ├── RECOVERY.md          ← Full factory-reset recovery playbook
-├── devices/
-│   └── YYYY-MM-DD_HH-MM/   ← one JSON per device per backup run
-├── flow_folders/
-│   └── YYYY-MM-DD_HH-MM/   ← one JSON per flow folder per backup run
-├── flows/
-│   └── YYYY-MM-DD_HH-MM/   ← one JSON per flow per backup run
-├── variables/
-│   └── YYYY-MM-DD_HH-MM/   ← one JSON per variable per backup run
-└── zones/
-    └── YYYY-MM-DD_HH-MM/   ← one JSON per zone per backup run
+└── Backups/
+    └── YYYY-MM-DD_HH-MM/    ← one directory per backup run
+        ├── devices/         ← one JSON per device
+        ├── flow_folders/    ← one JSON per flow folder
+        ├── flows/           ← one JSON per flow
+        ├── variables/       ← one JSON per variable
+        └── zones/           ← one JSON per zone
 ```
 
 ---
@@ -319,5 +316,5 @@ Homey_Backups/
 | Clipboard copy fails (macOS) | Should work natively via `pbcopy`; if not, try `pip install pyperclip --upgrade` |
 | Clipboard copy fails (Windows) | Should work natively; if not, try `pip install pyperclip --upgrade` |
 | Backup directory already exists | Each backup run needs a unique timestamp — wait a minute, delete the existing directory, or re-run with `--force` to overwrite it |
-| SVG shows `[var:041893df]` | Run `backup.py` first to create a `variables/` backup; the renderer auto-discovers it |
+| SVG shows `[var:041893df]` | Run `backup.py` first to create a `Backups/TIMESTAMP/variables/` backup; the renderer auto-discovers it |
 | Flows restored but show as broken | Flow references old device UUID — re-pair the device and update the flow card; see [RECOVERY.md](./RECOVERY.md) |

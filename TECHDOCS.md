@@ -22,11 +22,11 @@
 ┌──────────────────────────────────────────────────────────────────┐
 │                     Local Filesystem                             │
 │                                                                  │
-│  devices/YYYY-MM-DD_HH-MM/*.json                                 │
-│  flow_folders/YYYY-MM-DD_HH-MM/*.json                            │
-│  flows/YYYY-MM-DD_HH-MM/*.json                                   │
-│  zones/YYYY-MM-DD_HH-MM/*.json                                   │
-│  variables/YYYY-MM-DD_HH-MM/*.json                               │
+│  Backups/YYYY-MM-DD_HH-MM/devices/*.json                         │
+│  Backups/YYYY-MM-DD_HH-MM/flow_folders/*.json                    │
+│  Backups/YYYY-MM-DD_HH-MM/flows/*.json                           │
+│  Backups/YYYY-MM-DD_HH-MM/zones/*.json                           │
+│  Backups/YYYY-MM-DD_HH-MM/variables/*.json                       │
 └──────────┬────────────────────────────────────┬──────────────────┘
            │ reads JSON files                   │ reads JSON files
            ▼                                    ▼
@@ -99,11 +99,11 @@ Internal helper:
 
 | Category | API Path(s) | Output Folder | File Naming |
 |----------|-------------|---------------|-------------|
-| Devices | `/api/manager/devices/device` | `devices/YYYY-MM-DD_HH-MM/` | `<slug>-<id>.json` |
-| Flows | `/api/manager/flow/flow` + `/api/manager/flow/advancedflow` | `flows/YYYY-MM-DD_HH-MM/` | `<slug>-<id>.json` |
-| Flow Folders | `/api/manager/flow/flowfolder` | `flow_folders/YYYY-MM-DD_HH-MM/` | `<slug>-<id>.json` |
-| Zones | `/api/manager/zones/zone` | `zones/YYYY-MM-DD_HH-MM/` | `<slug>-<id>.json` |
-| Variables | `/api/manager/logic/variable` + `/api/app/net.i-dev.betterlogic/ALL` | `variables/YYYY-MM-DD_HH-MM/` | Logic: `<slug>-<id>.json`, BLL: `bll-<name-slug>.json` |
+| Devices | `/api/manager/devices/device` | `Backups/YYYY-MM-DD_HH-MM/devices/` | `<slug>-<id>.json` |
+| Flows | `/api/manager/flow/flow` + `/api/manager/flow/advancedflow` | `Backups/YYYY-MM-DD_HH-MM/flows/` | `<slug>-<id>.json` |
+| Flow Folders | `/api/manager/flow/flowfolder` | `Backups/YYYY-MM-DD_HH-MM/flow_folders/` | `<slug>-<id>.json` |
+| Zones | `/api/manager/zones/zone` | `Backups/YYYY-MM-DD_HH-MM/zones/` | `<slug>-<id>.json` |
+| Variables | `/api/manager/logic/variable` + `/api/app/net.i-dev.betterlogic/ALL` | `Backups/YYYY-MM-DD_HH-MM/variables/` | Logic: `<slug>-<id>.json`, BLL: `bll-<name-slug>.json` |
 
 Each category function returns a `BackupResult` dataclass:
 ```python
@@ -284,11 +284,11 @@ def main() -> None:
 
 The renderer resolves UUIDs to human-readable names using sibling backup directories. Auto-discovery logic:
 
-1. Extract the timestamp from the flow file's parent directory (e.g. `flows/2026-04-23_11-13/` → `"2026-04-23_11-13"`)
+1. Extract the timestamp from the flow file's parent directory (e.g. `Backups/2026-04-23_11-13/flows/` → `"2026-04-23_11-13"`)
 2. Look for matching sibling directories:
-   - `{script_dir}/devices/{timestamp}/` → device lookup
-   - `{script_dir}/zones/{timestamp}/` → zone lookup
-   - `{flow_parent}/../variables/{timestamp}/` → variable lookup
+   - `{script_dir}/Backups/{timestamp}/devices/` → device lookup
+   - `{script_dir}/Backups/{timestamp}/zones/` → zone lookup
+   - `{script_dir}/Backups/{timestamp}/variables/` → variable lookup
 3. If found, scan all `*.json` files in each directory and build lookup dicts:
    - `_build_device_lookup(dir)` → `{uuid: name, "homey:device:uuid": name}`
    - `_build_zone_lookup(dir)` → `{uuid: name, "homey:zone:uuid": name}`
@@ -555,7 +555,7 @@ except ImportError:
 }
 ```
 
-> `folder`: UUID of the flow folder this flow belongs to, or `null` if in the root. Flow folder backup **is implemented** — folders are saved to `flow_folders/YYYY-MM-DD_HH-MM/`. However, after a factory reset, folders are re-created with new UUIDs. Build an old→new UUID mapping (see [RECOVERY.md](./RECOVERY.md) Step 6) and update this field in each flow's JSON before importing, or strip it entirely and organise flows manually afterward in the web app.
+> `folder`: UUID of the flow folder this flow belongs to, or `null` if in the root. Flow folder backup **is implemented** — folders are saved to `Backups/YYYY-MM-DD_HH-MM/flow_folders/`. However, after a factory reset, folders are re-created with new UUIDs. Build an old→new UUID mapping (see [RECOVERY.md](./RECOVERY.md) Step 6) and update this field in each flow's JSON before importing, or strip it entirely and organise flows manually afterward in the web app.
 >
 > `triggerable`: When `true`, this advanced flow can be triggered programmatically by other flows via the `homey:manager:flow:programmatic_trigger` action. Important when restoring cross-flow dependencies — if the target flow's UUID changes on import, any flow calling it will be broken.
 
@@ -694,7 +694,7 @@ if scheme == "homey:manager:mynewmanager":
 **Verifying your resolver:**
 ```bash
 # Render a flow that uses cards with the new URI scheme
-python homey_flow_svg.py flows/TIMESTAMP/your-flow.json -o /tmp/test.svg
+python homey_flow_svg.py Backups/TIMESTAMP/flows/your-flow.json -o /tmp/test.svg
 # The raw placeholder should no longer appear in the output
 grep "mynewmanager" /tmp/test.svg  # expect no output
 ```
@@ -707,10 +707,10 @@ grep "mynewmanager" /tmp/test.svg  # expect no output
 
 ```bash
 # Render all flows from a backup run
-python homey_flow_svg.py flows/2026-04-26_14-05/*.json -d test-output/
+python homey_flow_svg.py Backups/2026-04-26_14-05/flows/*.json -d test-output/
 
 # Render with PNG output for quick visual inspection
-python homey_flow_svg.py flows/2026-04-26_14-05/*.json -d test-output/ --png
+python homey_flow_svg.py Backups/2026-04-26_14-05/flows/*.json -d test-output/ --png
 ```
 
 ### What to check visually
@@ -728,7 +728,7 @@ python homey_flow_svg.py flows/2026-04-26_14-05/*.json -d test-output/ --png
 
 ```bash
 # Should render without errors, producing .svg files
-python homey_flow_svg.py flows/2026-04-26_14-05/some-flow.json
+python homey_flow_svg.py Backups/2026-04-26_14-05/flows/some-flow.json
 echo $?  # expect 0
 ```
 
