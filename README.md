@@ -304,6 +304,59 @@ Homey_Backups/
 
 ---
 
+## Development & CI
+
+### Running tests locally
+
+```bash
+./tests/run_tests.sh           # run all tests (uses uv)
+./tests/run_tests.sh -v        # verbose
+./tests/run_tests.sh -k backup # filter by name
+```
+
+Or directly with pytest:
+
+```bash
+uv run pytest tests/ --tb=short
+```
+
+### GitHub Actions workflow
+
+The repo ships with a CI workflow at `.github/workflows/ci.yml`. It runs on every push or pull request that touches a script, test file, or `pyproject.toml`. Steps:
+
+1. `pip install -e ".[dev]"` — installs the package + dev extras (pytest, ruff)
+2. `ruff check .` — lint (unused imports, style errors, etc.)
+3. `pytest --tb=short` — full test suite
+
+Matrix: **Python 3.11** and **Python 3.12** (both must pass).
+
+### Running CI locally with act
+
+[nektos/act](https://github.com/nektos/act) runs the GitHub Actions workflow inside Docker, so you can validate it before pushing.
+
+**Requirements:**
+- Docker running
+- `act` installed:
+  - macOS: `brew install act`
+  - Linux: `curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash`
+
+**Usage:**
+
+```bash
+# Full matrix (3.11 + 3.12) — pulls Docker image on first run (~800 MB)
+./tests/run_ci_local.sh
+
+# Single Python version
+./tests/run_ci_local.sh --python 3.11
+
+# Dry-run: parse and validate the workflow without pulling Docker
+./tests/run_ci_local.sh -n
+```
+
+> The first real run pulls `catthehacker/ubuntu:act-latest` (~800 MB). Subsequent runs reuse the cached image.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Fix |
