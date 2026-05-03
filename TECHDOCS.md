@@ -93,6 +93,7 @@ All methods use Bearer token auth via `requests.Session`. Base path: `{base_url}
 | `get_apps()` | `GET /api/manager/apps/app` | `list[dict]` (installed apps, flat) |
 | `get_app_settings(app_id)` | `GET /api/manager/apps/app/{id}/settings` | `dict` (app settings, `{}` if 404 or unavailable) |
 | `get_system_info()` | `GET /api/manager/system/state` (fallback: `/manager/system`) | `dict` (firmware, location, etc.) |
+| `get_geolocation()` | `GET /api/manager/geolocation/state` + `/option/location` + `/option/address` | `dict` with keys `state`, `location`, `address` — any endpoint that fails returns `{}` for that key |
 | `get_dashboards()` | `GET /api/manager/dashboards/dashboard` | `list[dict]` (flat) |
 | `get_moods()` | `GET /api/manager/moods/mood` | `list[dict]` (light scenes, flat) |
 
@@ -113,6 +114,7 @@ Internal helper:
 | Dashboards | `/api/manager/dashboards/dashboard` | `Backups/YYYY-MM-DD_HH-MM/dashboards/` | `<slug>-<id>.json` |
 | Light Scenes | `/api/manager/moods/mood` | `Backups/YYYY-MM-DD_HH-MM/moods/` | `<slug>-<id>.json` |
 | System Info | `/api/manager/system/state` | `Backups/YYYY-MM-DD_HH-MM/meta.json` | Single file (not a directory) |
+| Geolocation | `/api/manager/geolocation/state` + `/option/location` + `/option/address` | `Backups/YYYY-MM-DD_HH-MM/geolocation.json` | Single file — three endpoints merged under keys `state`, `location`, `address` |
 
 Each category function returns a `BackupResult` dataclass:
 ```python
@@ -131,7 +133,7 @@ class BackupResult:
 
 All `backup_*` functions for list-based categories (`backup_devices`, `backup_flows`, `backup_flow_folders`, `backup_zones`, `backup_variables`, `backup_apps`, `backup_dashboards`, `backup_moods`) delegate the common write loop to a shared `_backup_items()` helper. The helper handles: mkdir guard, iteration over items, JSON file write, and error collection into `BackupResult`. Each `backup_*` function is only responsible for the API call(s), any pre-processing (e.g. combining normal + advanced flows, fetching BLL variables, enriching apps with per-app settings), and computing the output filename per item. `output_dir` is passed as a parameter — there are no module-level `*_DIR` globals.
 
-`backup_system_info()` is the exception: it saves a single `meta.json` file rather than a directory of items, so it has its own minimal write loop instead of using `_backup_items()`.
+`backup_system_info()` and `backup_geolocation()` are the exceptions: they save single files (`meta.json` and `geolocation.json` respectively) rather than a directory of items, so each has its own minimal write loop instead of using `_backup_items()`.
 
 ### Error handling & exit codes
 

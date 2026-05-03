@@ -18,6 +18,7 @@ This script is intended to be run with [uv](https://github.com/astral-sh/uv):
 
 import argparse
 import os
+import subprocess
 import sys
 import json
 import pathlib
@@ -222,6 +223,27 @@ class HomeyAPI:
             data = self._get("/manager/system")
             return data if isinstance(data, dict) else {}
 
+    def get_geolocation(self) -> dict:
+        """Return merged home geolocation config (state + location option + address option).
+
+        Calls three separate endpoints and merges results under keys
+        ``state``, ``location``, and ``address``.  Any endpoint that fails
+        is silently skipped (empty dict for that key) so a partial result
+        is still useful.
+        """
+        result: dict = {}
+        for key, path in [
+            ("state",    "/manager/geolocation/state"),
+            ("location", "/manager/geolocation/option/location"),
+            ("address",  "/manager/geolocation/option/address"),
+        ]:
+            try:
+                data = self._get(path)
+                result[key] = data if isinstance(data, dict) else {}
+            except HomeyAPIError:
+                result[key] = {}
+        return result
+
     def get_dashboards(self) -> list[dict]:
         """Return all user-created Homey dashboards as a flat list."""
         data = self._get("/manager/dashboards/dashboard")
@@ -248,10 +270,14 @@ def _backup_items(
     force: bool = False,
 ) -> BackupResult:
     """
-    Generic backup loop shared by all five backup_* functions.
+    Generic backup loop shared by all list-based backup_* functions.
 
     items       — pre-fetched, pre-processed list of dicts
-    output_dir  — where to write JSON files (must not exist yet)
+    output_dir  — where to write JSON files (must not exist yet).
+                  The directory name must match the corresponding value in
+                  restore.py's CATEGORY_SUBDIRS dict so that restore.py can
+                   find it. (backup_system_info and backup_geolocation use
+                   single-file output paths and do NOT use this helper.)
     category    — display name for BackupResult (e.g. "Devices")
     header      — printed header line (e.g. "devices")
     filename_fn — returns filename string for this item, or None to skip
@@ -532,6 +558,50 @@ def backup_system_info(api: HomeyAPI, output_path: pathlib.Path, force: bool = F
 
 
 # ---------------------------------------------------------------------------
+# Backup logic — geolocation
+# ---------------------------------------------------------------------------
+
+def backup_geolocation(api: HomeyAPI, output_path: pathlib.Path, force: bool = False) -> BackupResult:
+    """Fetch home geolocation config and save as a single JSON file (geolocation.json).
+
+    Merges data from three API endpoints (state, location option, address option)
+    under keys ``state``, ``location``, and ``address``.
+    """
+    print("\n── Backing up geolocation " + "─" * 24)
+    result = BackupResult(category="Geolocation", output_dir=output_path.resolve())
+
+    if output_path.exists() and not force:
+        print(f"[ERROR] Backup file already exists: {output_path}", file=sys.stderr)
+        print("  Use --force to overwrite.", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        geo = api.get_geolocation()
+    except Exception as exc:  # pragma: no cover — get_geolocation() swallows per-endpoint errors
+        result.errors += 1
+        result.error_details.append(str(exc))
+        result.note = "API call failed"
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return result
+
+    if not any(geo.values()):
+        print("[WARN] No geolocation data returned by API.")
+        result.note = "no data returned by API"
+        return result
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        output_path.write_text(json.dumps(geo, indent=2, ensure_ascii=False), encoding="utf-8")
+        print(f"  ✓  {output_path.name}")
+        result.saved += 1
+    except OSError as exc:
+        result.errors += 1
+        result.error_details.append(str(exc))
+
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Backup logic — dashboards
 # ---------------------------------------------------------------------------
 
@@ -653,6 +723,43 @@ def _print_summary(results: list[BackupResult]) -> None:
         print("[DONE] Backup complete.")
 
 
+# ---------------------------------------------------------------------------
+# Post-backup render helper
+# ---------------------------------------------------------------------------
+
+
+def _render_flows(flows_dir: pathlib.Path, *, png: bool = False) -> None:
+    """Invoke homey_flow_svg.py on all flow JSON files in *flows_dir*.
+
+    Called after backup when --render-svg or --render-png is set.
+    Errors from the renderer are printed but do not affect the backup result.
+    """
+    if not flows_dir.is_dir():
+        print(f"\n[SKIP] Flow render: {flows_dir} does not exist (flows backup may have failed).")
+        return
+
+    flow_files = sorted(flows_dir.glob("*.json"))
+    if not flow_files:
+        print(f"\n[SKIP] Flow render: no JSON files found in {flows_dir}.")
+        return
+
+    svg_script = pathlib.Path(__file__).parent / "homey_flow_svg.py"
+    if not svg_script.exists():
+        print(f"\n[ERROR] Flow render: homey_flow_svg.py not found at {svg_script}.", file=sys.stderr)
+        return
+
+    cmd = [sys.executable, str(svg_script)] + [str(f) for f in flow_files]
+    if png:
+        cmd.append("--png")
+
+    mode = "PNG" if png else "SVG"
+    print(f"\n── Rendering flow diagrams ({mode}) " + "─" * 20)
+    try:
+        subprocess.run(cmd, check=False)
+    except OSError as exc:
+        print(f"[ERROR] Flow render failed: {exc}", file=sys.stderr)
+
+
 def main() -> None:
     """Validate config, connect to Homey, and run all backup categories."""
     ap = argparse.ArgumentParser(description="Homey Backup — back up devices, flows, zones and variables via local REST API")
@@ -662,6 +769,18 @@ def main() -> None:
         action="store_true",
         default=False,
         help="Overwrite an existing backup directory for the same timestamp (use with caution).",
+    )
+    ap.add_argument(
+        "--render-svg",
+        action="store_true",
+        default=False,
+        help="After backup, render all flow diagrams as SVG files alongside the flow JSON.",
+    )
+    ap.add_argument(
+        "--render-png",
+        action="store_true",
+        default=False,
+        help="After backup, render all flow diagrams as PNG images (requires cairosvg).",
     )
     args = ap.parse_args()
 
@@ -691,6 +810,8 @@ def main() -> None:
     backup_root = base / "Backups" / now_str
 
     results: list[BackupResult] = []
+    # NOTE: Directory names below must stay in sync with CATEGORY_SUBDIRS in restore.py.
+    # Single-file backups (meta.json, geolocation.json) are not in CATEGORY_SUBDIRS.
     results.append(backup_devices(api, output_dir=backup_root / "devices", force=args.force))
     results.append(backup_flows(api, output_dir=backup_root / "flows", force=args.force))
     results.append(backup_flow_folders(api, output_dir=backup_root / "flow_folders", force=args.force))
@@ -698,10 +819,14 @@ def main() -> None:
     results.append(backup_logic_variables(api, output_dir=backup_root / "variables", force=args.force))
     results.append(backup_apps(api, output_dir=backup_root / "apps", force=args.force))
     results.append(backup_system_info(api, output_path=backup_root / "meta.json", force=args.force))
+    results.append(backup_geolocation(api, output_path=backup_root / "geolocation.json", force=args.force))
     results.append(backup_dashboards(api, output_dir=backup_root / "dashboards", force=args.force))
     results.append(backup_moods(api, output_dir=backup_root / "moods", force=args.force))
 
     _print_summary(results)
+
+    if args.render_svg or args.render_png:
+        _render_flows(backup_root / "flows", png=args.render_png)
 
 
 if __name__ == "__main__":
