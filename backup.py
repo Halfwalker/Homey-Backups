@@ -248,10 +248,14 @@ def _backup_items(
     force: bool = False,
 ) -> BackupResult:
     """
-    Generic backup loop shared by all five backup_* functions.
+    Generic backup loop shared by all list-based backup_* functions.
 
     items       — pre-fetched, pre-processed list of dicts
-    output_dir  — where to write JSON files (must not exist yet)
+    output_dir  — where to write JSON files (must not exist yet).
+                  The directory name must match the corresponding value in
+                  restore.py's CATEGORY_SUBDIRS dict so that restore.py can
+                   find it. (backup_system_info uses a single-file output path
+                   and does NOT use this helper.)
     category    — display name for BackupResult (e.g. "Devices")
     header      — printed header line (e.g. "devices")
     filename_fn — returns filename string for this item, or None to skip
@@ -691,6 +695,8 @@ def main() -> None:
     backup_root = base / "Backups" / now_str
 
     results: list[BackupResult] = []
+    # NOTE: Directory names below must stay in sync with CATEGORY_SUBDIRS in restore.py.
+    # Single-file backups (meta.json) are not in CATEGORY_SUBDIRS.
     results.append(backup_devices(api, output_dir=backup_root / "devices", force=args.force))
     results.append(backup_flows(api, output_dir=backup_root / "flows", force=args.force))
     results.append(backup_flow_folders(api, output_dir=backup_root / "flow_folders", force=args.force))

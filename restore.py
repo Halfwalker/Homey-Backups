@@ -54,6 +54,10 @@ _BASE = pathlib.Path(__file__).parent
 _BACKUPS_ROOT = _BASE / "Backups"
 
 CATEGORY_SUBDIRS: dict[str, str] = {
+    # Canonical mapping of category key → backup subdirectory name.
+    # backup.py's main() must use identical directory names when constructing output paths.
+    # If you add a new backup category, add it here AND update backup.py's main().
+    # Note: meta.json and geolocation.json are single files at the backup root — not listed here.
     "device":       "devices",
     "flow":         "flows",
     "flow_folder":  "flow_folders",
