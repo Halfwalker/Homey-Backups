@@ -1,9 +1,11 @@
 """
-Tests for the three Critical Fixes in backup.py.
+Tests for critical backup.py behaviour: connection handling, error recovery,
+argparse flags, and post-backup render hooks.
 
 Run:  pytest tests/test_backup_critical.py -v
 """
 import pathlib
+import subprocess
 import sys
 from unittest.mock import MagicMock, patch
 import pytest
@@ -161,3 +163,96 @@ class TestOutputDirParameter:
                         f"Importing backup.py created {p} — "
                         f"module-level dirs must not be created at import time (fix B3)"
                     )
+
+
+# ── _render_flows ────────────────────────────────────────────────────────
+
+
+class TestRenderFlows:
+    def test_skips_when_flows_dir_missing(self, tmp_path, capsys):
+        """If flows/ dir doesn't exist, _render_flows prints a skip message and does nothing."""
+        import backup
+
+        backup._render_flows(tmp_path / "flows")
+
+        out = capsys.readouterr().out
+        assert "SKIP" in out
+        assert "does not exist" in out
+
+    def test_skips_when_flows_dir_is_empty(self, tmp_path, capsys):
+        """If flows/ exists but has no JSON files, _render_flows prints a skip message."""
+        import backup
+
+        flows_dir = tmp_path / "flows"
+        flows_dir.mkdir()
+
+        backup._render_flows(flows_dir)
+
+        out = capsys.readouterr().out
+        assert "SKIP" in out
+        assert "no JSON files" in out
+
+    def test_calls_subprocess_with_flow_files(self, tmp_path):
+        """With JSON files present and the script found, subprocess.run is called."""
+        import backup
+
+        flows_dir = tmp_path / "flows"
+        flows_dir.mkdir()
+        flow_file = flows_dir / "my-flow.json"
+        flow_file.write_text("{}")
+
+        # Place a fake homey_flow_svg.py next to backup.py
+        svg_script = pathlib.Path(backup.__file__).parent / "homey_flow_svg.py"
+        created = False
+        if not svg_script.exists():
+            svg_script.write_text("# stub\n")
+            created = True
+
+        try:
+            with patch("subprocess.run") as mock_run:
+                backup._render_flows(flows_dir, png=False)
+                mock_run.assert_called_once()
+                cmd = mock_run.call_args[0][0]
+                assert str(flow_file) in cmd
+                assert "--png" not in cmd
+        finally:
+            if created:
+                svg_script.unlink()
+
+    def test_adds_png_flag_when_png_true(self, tmp_path):
+        """When png=True, --png is appended to the subprocess command."""
+        import backup
+
+        flows_dir = tmp_path / "flows"
+        flows_dir.mkdir()
+        (flows_dir / "flow.json").write_text("{}")
+
+        svg_script = pathlib.Path(backup.__file__).parent / "homey_flow_svg.py"
+        created = False
+        if not svg_script.exists():
+            svg_script.write_text("# stub\n")
+            created = True
+
+        try:
+            with patch("subprocess.run") as mock_run:
+                backup._render_flows(flows_dir, png=True)
+                cmd = mock_run.call_args[0][0]
+                assert "--png" in cmd
+        finally:
+            if created:
+                svg_script.unlink()
+
+    def test_missing_svg_script_prints_error_not_exception(self, tmp_path, capsys):
+        """If homey_flow_svg.py is not found, an error is printed (no crash)."""
+        import backup
+
+        flows_dir = tmp_path / "flows"
+        flows_dir.mkdir()
+        (flows_dir / "flow.json").write_text("{}")
+
+        # Patch __file__ so the script lookup points somewhere it can't exist
+        with patch.object(backup, "__file__", str(tmp_path / "backup.py")):
+            backup._render_flows(flows_dir)
+
+        err = capsys.readouterr().err
+        assert "not found" in err

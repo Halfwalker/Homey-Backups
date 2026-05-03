@@ -18,6 +18,7 @@ This script is intended to be run with [uv](https://github.com/astral-sh/uv):
 
 import argparse
 import os
+import subprocess
 import sys
 import json
 import pathlib
@@ -722,6 +723,43 @@ def _print_summary(results: list[BackupResult]) -> None:
         print("[DONE] Backup complete.")
 
 
+# ---------------------------------------------------------------------------
+# Post-backup render helper
+# ---------------------------------------------------------------------------
+
+
+def _render_flows(flows_dir: pathlib.Path, *, png: bool = False) -> None:
+    """Invoke homey_flow_svg.py on all flow JSON files in *flows_dir*.
+
+    Called after backup when --render-svg or --render-png is set.
+    Errors from the renderer are printed but do not affect the backup result.
+    """
+    if not flows_dir.is_dir():
+        print(f"\n[SKIP] Flow render: {flows_dir} does not exist (flows backup may have failed).")
+        return
+
+    flow_files = sorted(flows_dir.glob("*.json"))
+    if not flow_files:
+        print(f"\n[SKIP] Flow render: no JSON files found in {flows_dir}.")
+        return
+
+    svg_script = pathlib.Path(__file__).parent / "homey_flow_svg.py"
+    if not svg_script.exists():
+        print(f"\n[ERROR] Flow render: homey_flow_svg.py not found at {svg_script}.", file=sys.stderr)
+        return
+
+    cmd = [sys.executable, str(svg_script)] + [str(f) for f in flow_files]
+    if png:
+        cmd.append("--png")
+
+    mode = "PNG" if png else "SVG"
+    print(f"\n── Rendering flow diagrams ({mode}) " + "─" * 20)
+    try:
+        subprocess.run(cmd, check=False)
+    except OSError as exc:
+        print(f"[ERROR] Flow render failed: {exc}", file=sys.stderr)
+
+
 def main() -> None:
     """Validate config, connect to Homey, and run all backup categories."""
     ap = argparse.ArgumentParser(description="Homey Backup — back up devices, flows, zones and variables via local REST API")
@@ -731,6 +769,18 @@ def main() -> None:
         action="store_true",
         default=False,
         help="Overwrite an existing backup directory for the same timestamp (use with caution).",
+    )
+    ap.add_argument(
+        "--render-svg",
+        action="store_true",
+        default=False,
+        help="After backup, render all flow diagrams as SVG files alongside the flow JSON.",
+    )
+    ap.add_argument(
+        "--render-png",
+        action="store_true",
+        default=False,
+        help="After backup, render all flow diagrams as PNG images (requires cairosvg).",
     )
     args = ap.parse_args()
 
@@ -774,6 +824,9 @@ def main() -> None:
     results.append(backup_moods(api, output_dir=backup_root / "moods", force=args.force))
 
     _print_summary(results)
+
+    if args.render_svg or args.render_png:
+        _render_flows(backup_root / "flows", png=args.render_png)
 
 
 if __name__ == "__main__":
