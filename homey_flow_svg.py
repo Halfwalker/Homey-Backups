@@ -818,6 +818,25 @@ def _build_folder_lookup(flow_folders_dir: Path) -> dict[str, str]:
     return lookup
 
 
+def _auto_discover_sibling(inputs: list[str], sibling_name: str) -> "Path | None":
+    """Auto-discover a sibling backup directory from a list of flow file paths.
+
+    Given flow files at ``Backups/TIMESTAMP/flows/*.json``, returns
+    ``Backups/TIMESTAMP/<sibling_name>/`` if that directory exists, else ``None``.
+
+    Used in ``main()`` to auto-resolve ``--devices-dir``, ``--zones-dir``,
+    ``--variables-dir``, and the flow_folders directory from the input file paths
+    when the user does not supply those flags explicitly.
+    """
+    for input_path in inputs:
+        parent = Path(input_path).parent
+        if parent.name == "flows" and "_" in parent.parent.name:
+            candidate = parent.parent / sibling_name
+            if candidate.exists():
+                return candidate
+    return None
+
+
 def _build_trigger_name_map(
     cards: dict[str, dict],
     zone_lookup: dict[str, str] | None = None,
@@ -1495,14 +1514,7 @@ def main() -> None:
     # Auto-discover devices directory if not specified
     # Structure: Backups/TIMESTAMP/flows/file.json → Backups/TIMESTAMP/devices/
     if not devices_dir and args.inputs:
-        for input_path in args.inputs:
-            p = Path(input_path)
-            parent = p.parent
-            if parent.name == "flows" and "_" in parent.parent.name:
-                auto_devices = parent.parent / "devices"
-                if auto_devices.exists():
-                    devices_dir = auto_devices
-                    break
+        devices_dir = _auto_discover_sibling(args.inputs, "devices")
 
     device_lookup = _build_device_lookup(devices_dir) if devices_dir else {}
     cap_titles = _build_cap_titles(devices_dir) if devices_dir else {}
@@ -1513,15 +1525,7 @@ def main() -> None:
 
     # Auto-discover variables directory if not specified
     if not variables_dir and args.inputs:
-        for input_path in args.inputs:
-            p = Path(input_path)
-            parent = p.parent
-            # Structure: Backups/TIMESTAMP/flows/file.json → Backups/TIMESTAMP/variables/
-            if parent.name == "flows" and "_" in parent.parent.name:
-                auto_vars = parent.parent / "variables"
-                if auto_vars.exists():
-                    variables_dir = auto_vars
-                    break
+        variables_dir = _auto_discover_sibling(args.inputs, "variables")
 
     var_lookup = _build_variable_lookup(variables_dir) if variables_dir else {}
     if var_lookup:
@@ -1531,32 +1535,16 @@ def main() -> None:
 
     # Auto-discover zones directory if not specified
     if not zones_dir and args.inputs:
-        for input_path in args.inputs:
-            p = Path(input_path)
-            parent = p.parent
-            # Structure: Backups/TIMESTAMP/flows/file.json → Backups/TIMESTAMP/zones/
-            if parent.name == "flows" and "_" in parent.parent.name:
-                auto_zones = parent.parent / "zones"
-                if auto_zones.exists():
-                    zones_dir = auto_zones
-                    break
+        zones_dir = _auto_discover_sibling(args.inputs, "zones")
 
     zone_lookup = _build_zone_lookup(zones_dir) if zones_dir else {}
     if zone_lookup:
         print(f"[INFO] Loaded {len(zone_lookup) // 2} zone name(s) from {zones_dir}")
 
     # Auto-discover flow_folders directory
-    folders_dir: Path | None = None
-    if args.inputs:
-        for input_path in args.inputs:
-            p = Path(input_path)
-            parent = p.parent
-            # Structure: Backups/TIMESTAMP/flows/file.json → Backups/TIMESTAMP/flow_folders/
-            if parent.name == "flows" and "_" in parent.parent.name:
-                auto_folders = parent.parent / "flow_folders"
-                if auto_folders.exists():
-                    folders_dir = auto_folders
-                    break
+    folders_dir: Path | None = (
+        _auto_discover_sibling(args.inputs, "flow_folders") if args.inputs else None
+    )
 
     folder_lookup = _build_folder_lookup(folders_dir) if folders_dir else {}
     if folder_lookup:
