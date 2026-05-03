@@ -197,6 +197,41 @@ class HomeyAPI:
             return _dict_to_list(data)
         return []
 
+    def get_apps(self) -> list[dict]:
+        """Return all installed Homey apps as a flat list."""
+        data = self._get("/manager/apps/app")
+        return _dict_to_list(data)
+
+    def get_app_settings(self, app_id: str) -> dict:
+        """Return settings for a specific app, or {} if unavailable (404, no settings, etc.)."""
+        try:
+            data = self._get(f"/manager/apps/app/{app_id}/settings")
+            return data if isinstance(data, dict) else {}
+        except HomeyAPIError:
+            return {}
+
+    def get_system_info(self) -> dict:
+        """Return Homey system state (firmware version, home location, etc.).
+
+        Tries /manager/system/state first; falls back to /manager/system if that fails.
+        """
+        try:
+            data = self._get("/manager/system/state")
+            return data if isinstance(data, dict) else {}
+        except HomeyAPIError:
+            data = self._get("/manager/system")
+            return data if isinstance(data, dict) else {}
+
+    def get_dashboards(self) -> list[dict]:
+        """Return all user-created Homey dashboards as a flat list."""
+        data = self._get("/manager/dashboards/dashboard")
+        return _dict_to_list(data)
+
+    def get_moods(self) -> list[dict]:
+        """Return all Homey light scenes (moods) as a flat list."""
+        data = self._get("/manager/moods/mood")
+        return _dict_to_list(data)
+
 
 # ---------------------------------------------------------------------------
 # Generic backup helper
@@ -423,6 +458,136 @@ def backup_logic_variables(api: HomeyAPI, output_dir: pathlib.Path, force: bool 
 
 
 # ---------------------------------------------------------------------------
+# Backup logic — installed apps (+ per-app settings embedded)
+# ---------------------------------------------------------------------------
+
+def backup_apps(api: HomeyAPI, output_dir: pathlib.Path, force: bool = False) -> BackupResult:
+    """Fetch all installed apps, enrich each with its settings, and save as JSON files."""
+    try:
+        items = api.get_apps()
+    except HomeyAPIError as exc:
+        result = BackupResult(category="Apps")
+        result.errors += 1
+        result.error_details.append(str(exc))
+        result.note = "API call failed"
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return result
+
+    # Enrich each app with its per-app settings (graceful — returns {} if unavailable)
+    for item in items:
+        app_id = item.get("id")
+        if app_id:
+            item["settings"] = api.get_app_settings(app_id)
+
+    def _filename(item: dict) -> str | None:
+        app_id = item.get("id") or item.get("_id") or item.get("ID")
+        name = item.get("name") or item.get("title") or ""
+        if not app_id:
+            print(f"[WARN] App without ID skipped: {name!r}")
+            return None
+        return f"{slugify(name, separator='-') if name else 'unnamed'}-{app_id}.json"
+
+    return _backup_items(items, output_dir, "Apps", "apps", _filename,
+                         warn_empty="No apps returned by API.", force=force)
+
+
+# ---------------------------------------------------------------------------
+# Backup logic — system info (single-file, not a directory)
+# ---------------------------------------------------------------------------
+
+def backup_system_info(api: HomeyAPI, output_path: pathlib.Path, force: bool = False) -> BackupResult:
+    """Fetch Homey system state and save as a single JSON file (meta.json)."""
+    print("\n── Backing up system info " + "─" * 22)
+    result = BackupResult(category="System", output_dir=output_path.resolve())
+
+    if output_path.exists() and not force:
+        print(f"[ERROR] Backup file already exists: {output_path}", file=sys.stderr)
+        print("  Use --force to overwrite.", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        info = api.get_system_info()
+    except HomeyAPIError as exc:
+        result.errors += 1
+        result.error_details.append(str(exc))
+        result.note = "API call failed"
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return result
+
+    if not info:
+        print("[WARN] No system info returned by API.")
+        result.note = "no data returned by API"
+        return result
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        output_path.write_text(json.dumps(info, indent=2, ensure_ascii=False), encoding="utf-8")
+        print(f"  ✓  {output_path.name}")
+        result.saved += 1
+    except OSError as exc:
+        result.errors += 1
+        result.error_details.append(str(exc))
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Backup logic — dashboards
+# ---------------------------------------------------------------------------
+
+def backup_dashboards(api: HomeyAPI, output_dir: pathlib.Path, force: bool = False) -> BackupResult:
+    """Fetch all Homey dashboards and save each as a JSON file."""
+    try:
+        items = api.get_dashboards()
+    except HomeyAPIError as exc:
+        result = BackupResult(category="Dashboards")
+        result.errors += 1
+        result.error_details.append(str(exc))
+        result.note = "API call failed"
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return result
+
+    def _filename(item: dict) -> str | None:
+        item_id = item.get("id") or item.get("_id") or item.get("ID")
+        name = item.get("name") or item.get("title") or ""
+        if not item_id:
+            print(f"[WARN] Dashboard without ID skipped: {name!r}")
+            return None
+        return f"{slugify(name, separator='-') if name else 'unnamed'}-{item_id}.json"
+
+    return _backup_items(items, output_dir, "Dashboards", "dashboards", _filename,
+                         warn_empty="No dashboards returned by API.", force=force)
+
+
+# ---------------------------------------------------------------------------
+# Backup logic — moods (light scenes)
+# ---------------------------------------------------------------------------
+
+def backup_moods(api: HomeyAPI, output_dir: pathlib.Path, force: bool = False) -> BackupResult:
+    """Fetch all Homey light scenes (moods) and save each as a JSON file."""
+    try:
+        items = api.get_moods()
+    except HomeyAPIError as exc:
+        result = BackupResult(category="Moods")
+        result.errors += 1
+        result.error_details.append(str(exc))
+        result.note = "API call failed"
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return result
+
+    def _filename(item: dict) -> str | None:
+        item_id = item.get("id") or item.get("_id") or item.get("ID")
+        name = item.get("name") or item.get("title") or ""
+        if not item_id:
+            print(f"[WARN] Mood without ID skipped: {name!r}")
+            return None
+        return f"{slugify(name, separator='-') if name else 'unnamed'}-{item_id}.json"
+
+    return _backup_items(items, output_dir, "Moods", "light scenes", _filename,
+                         warn_empty="No moods returned by API.", force=force)
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
@@ -489,7 +654,7 @@ def _print_summary(results: list[BackupResult]) -> None:
 
 
 def main() -> None:
-    """Validate config, connect to Homey, and run all five backup categories."""
+    """Validate config, connect to Homey, and run all backup categories."""
     ap = argparse.ArgumentParser(description="Homey Backup — back up devices, flows, zones and variables via local REST API")
     ap.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     ap.add_argument(
@@ -531,6 +696,10 @@ def main() -> None:
     results.append(backup_flow_folders(api, output_dir=backup_root / "flow_folders", force=args.force))
     results.append(backup_zones(api, output_dir=backup_root / "zones", force=args.force))
     results.append(backup_logic_variables(api, output_dir=backup_root / "variables", force=args.force))
+    results.append(backup_apps(api, output_dir=backup_root / "apps", force=args.force))
+    results.append(backup_system_info(api, output_path=backup_root / "meta.json", force=args.force))
+    results.append(backup_dashboards(api, output_dir=backup_root / "dashboards", force=args.force))
+    results.append(backup_moods(api, output_dir=backup_root / "moods", force=args.force))
 
     _print_summary(results)
 
