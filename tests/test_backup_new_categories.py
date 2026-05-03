@@ -5,8 +5,7 @@ Tests for the four new backup categories added in batch 1:
 Run:  pytest tests/test_backup_new_categories.py -v
 """
 import json
-import pathlib
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 import pytest
 
 
