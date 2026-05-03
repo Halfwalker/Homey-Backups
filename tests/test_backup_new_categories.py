@@ -1,6 +1,7 @@
 """
-Tests for the four new backup categories added in batch 1:
-  backup_apps, backup_system_info, backup_dashboards, backup_moods
+Tests for backup categories added in batches 1 and 2:
+  backup_apps, backup_system_info, backup_dashboards, backup_moods,
+  backup_geolocation
 
 Run:  pytest tests/test_backup_new_categories.py -v
 """
@@ -20,6 +21,7 @@ def _make_api(**kwargs):
     api.get_system_info.return_value = kwargs.get("system_info", {})
     api.get_dashboards.return_value = kwargs.get("dashboards", [])
     api.get_moods.return_value = kwargs.get("moods", [])
+    api.get_geolocation.return_value = kwargs.get("geolocation", {})
     return api
 
 
@@ -264,3 +266,76 @@ class TestBackupMoods:
 
         files = list((tmp_path / "moods").glob("*.json"))
         assert files[0].name == "movie-night-xyz-456.json"
+
+
+# ── backup_geolocation ───────────────────────────────────────────────────
+
+
+_GEO_DATA = {
+    "state":    {"mode": "automatic", "latitude": 51.5, "longitude": -0.1, "accuracy": 1000},
+    "location": {"latitude": 51.5, "longitude": -0.1},
+    "address":  {"city": "London", "country": "GB"},
+}
+
+
+class TestBackupGeolocation:
+    def test_saves_geolocation_json_file(self, tmp_path):
+        """Geolocation config is written as a single geolocation.json at the given output_path."""
+        import backup
+
+        api = _make_api(geolocation=_GEO_DATA)
+        output_path = tmp_path / "geolocation.json"
+        result = backup.backup_geolocation(api, output_path=output_path)
+
+        assert result.saved == 1
+        assert result.errors == 0
+        assert output_path.exists()
+        data = json.loads(output_path.read_text())
+        assert data["state"]["mode"] == "automatic"
+        assert data["address"]["city"] == "London"
+
+    def test_partial_data_is_still_saved(self, tmp_path):
+        """Even if only one endpoint returned data, the file is written."""
+        import backup
+
+        partial = {"state": {"mode": "manual", "latitude": 52.0}, "location": {}, "address": {}}
+        api = _make_api(geolocation=partial)
+        output_path = tmp_path / "geolocation.json"
+        result = backup.backup_geolocation(api, output_path=output_path)
+
+        assert result.saved == 1
+        data = json.loads(output_path.read_text())
+        assert data["state"]["latitude"] == 52.0
+
+    def test_empty_response_returns_no_data_note(self, tmp_path):
+        """When all endpoints return empty dicts, result has a note and saved=0."""
+        import backup
+
+        api = _make_api(geolocation={"state": {}, "location": {}, "address": {}})
+        result = backup.backup_geolocation(api, output_path=tmp_path / "geolocation.json")
+
+        assert result.saved == 0
+        assert "no data" in result.note
+
+    def test_existing_file_without_force_exits(self, tmp_path):
+        """If geolocation.json already exists and force=False, sys.exit(1) is called."""
+        import backup
+
+        api = _make_api(geolocation=_GEO_DATA)
+        output_path = tmp_path / "geolocation.json"
+        output_path.write_text("{}")  # pre-existing file
+
+        with pytest.raises(SystemExit):
+            backup.backup_geolocation(api, output_path=output_path, force=False)
+
+    def test_force_overwrites_existing_file(self, tmp_path):
+        """With force=True an existing geolocation.json is silently overwritten."""
+        import backup
+
+        api = _make_api(geolocation=_GEO_DATA)
+        output_path = tmp_path / "geolocation.json"
+        output_path.write_text('{"state": {"mode": "old"}}')
+
+        result = backup.backup_geolocation(api, output_path=output_path, force=True)
+        assert result.saved == 1
+        assert json.loads(output_path.read_text())["state"]["mode"] == "automatic"

@@ -222,6 +222,27 @@ class HomeyAPI:
             data = self._get("/manager/system")
             return data if isinstance(data, dict) else {}
 
+    def get_geolocation(self) -> dict:
+        """Return merged home geolocation config (state + location option + address option).
+
+        Calls three separate endpoints and merges results under keys
+        ``state``, ``location``, and ``address``.  Any endpoint that fails
+        is silently skipped (empty dict for that key) so a partial result
+        is still useful.
+        """
+        result: dict = {}
+        for key, path in [
+            ("state",    "/manager/geolocation/state"),
+            ("location", "/manager/geolocation/option/location"),
+            ("address",  "/manager/geolocation/option/address"),
+        ]:
+            try:
+                data = self._get(path)
+                result[key] = data if isinstance(data, dict) else {}
+            except HomeyAPIError:
+                result[key] = {}
+        return result
+
     def get_dashboards(self) -> list[dict]:
         """Return all user-created Homey dashboards as a flat list."""
         data = self._get("/manager/dashboards/dashboard")
@@ -254,8 +275,8 @@ def _backup_items(
     output_dir  — where to write JSON files (must not exist yet).
                   The directory name must match the corresponding value in
                   restore.py's CATEGORY_SUBDIRS dict so that restore.py can
-                   find it. (backup_system_info uses a single-file output path
-                   and does NOT use this helper.)
+                   find it. (backup_system_info and backup_geolocation use
+                   single-file output paths and do NOT use this helper.)
     category    — display name for BackupResult (e.g. "Devices")
     header      — printed header line (e.g. "devices")
     filename_fn — returns filename string for this item, or None to skip
@@ -536,6 +557,50 @@ def backup_system_info(api: HomeyAPI, output_path: pathlib.Path, force: bool = F
 
 
 # ---------------------------------------------------------------------------
+# Backup logic — geolocation
+# ---------------------------------------------------------------------------
+
+def backup_geolocation(api: HomeyAPI, output_path: pathlib.Path, force: bool = False) -> BackupResult:
+    """Fetch home geolocation config and save as a single JSON file (geolocation.json).
+
+    Merges data from three API endpoints (state, location option, address option)
+    under keys ``state``, ``location``, and ``address``.
+    """
+    print("\n── Backing up geolocation " + "─" * 24)
+    result = BackupResult(category="Geolocation", output_dir=output_path.resolve())
+
+    if output_path.exists() and not force:
+        print(f"[ERROR] Backup file already exists: {output_path}", file=sys.stderr)
+        print("  Use --force to overwrite.", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        geo = api.get_geolocation()
+    except Exception as exc:  # pragma: no cover — get_geolocation() swallows per-endpoint errors
+        result.errors += 1
+        result.error_details.append(str(exc))
+        result.note = "API call failed"
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return result
+
+    if not any(geo.values()):
+        print("[WARN] No geolocation data returned by API.")
+        result.note = "no data returned by API"
+        return result
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        output_path.write_text(json.dumps(geo, indent=2, ensure_ascii=False), encoding="utf-8")
+        print(f"  ✓  {output_path.name}")
+        result.saved += 1
+    except OSError as exc:
+        result.errors += 1
+        result.error_details.append(str(exc))
+
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Backup logic — dashboards
 # ---------------------------------------------------------------------------
 
@@ -696,7 +761,7 @@ def main() -> None:
 
     results: list[BackupResult] = []
     # NOTE: Directory names below must stay in sync with CATEGORY_SUBDIRS in restore.py.
-    # Single-file backups (meta.json) are not in CATEGORY_SUBDIRS.
+    # Single-file backups (meta.json, geolocation.json) are not in CATEGORY_SUBDIRS.
     results.append(backup_devices(api, output_dir=backup_root / "devices", force=args.force))
     results.append(backup_flows(api, output_dir=backup_root / "flows", force=args.force))
     results.append(backup_flow_folders(api, output_dir=backup_root / "flow_folders", force=args.force))
@@ -704,6 +769,7 @@ def main() -> None:
     results.append(backup_logic_variables(api, output_dir=backup_root / "variables", force=args.force))
     results.append(backup_apps(api, output_dir=backup_root / "apps", force=args.force))
     results.append(backup_system_info(api, output_path=backup_root / "meta.json", force=args.force))
+    results.append(backup_geolocation(api, output_path=backup_root / "geolocation.json", force=args.force))
     results.append(backup_dashboards(api, output_dir=backup_root / "dashboards", force=args.force))
     results.append(backup_moods(api, output_dir=backup_root / "moods", force=args.force))
 
