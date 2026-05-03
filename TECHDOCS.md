@@ -295,20 +295,19 @@ def main() -> None:
 
 ### Name resolution
 
-The renderer resolves UUIDs to human-readable names using sibling backup directories. Auto-discovery logic:
+The renderer resolves UUIDs to human-readable names using sibling backup directories. Auto-discovery is handled by `_auto_discover_sibling(inputs, sibling_name)`:
 
-1. Extract the timestamp from the flow file's parent directory (e.g. `Backups/2026-04-23_11-13/flows/` → `"2026-04-23_11-13"`)
-2. Look for matching sibling directories:
-   - `{script_dir}/Backups/{timestamp}/devices/` → device lookup
-   - `{script_dir}/Backups/{timestamp}/zones/` → zone lookup
-   - `{script_dir}/Backups/{timestamp}/variables/` → variable lookup
-3. If found, scan all `*.json` files in each directory and build lookup dicts:
-   - `_build_device_lookup(dir)` → `{uuid: name, "homey:device:uuid": name}`
-   - `_build_zone_lookup(dir)` → `{uuid: name, "homey:zone:uuid": name}`
-   - `_build_variable_lookup(dir)` → `{uuid: name}` (both Logic and BLL vars)
-   - `_build_cap_titles(dir)` → `{device_uuid: {cap_id: (title, unit)}}`
+1. For each input file, check whether its parent directory is named `"flows"` and its grandparent name contains `"_"` (timestamp format).
+2. If so, look for `grandparent/<sibling_name>/` on disk.
+3. Return the first match found, or `None` if no match exists.
 
-If auto-discovery fails, a warning is printed to stderr listing which directories were not found and what will remain unresolved.
+Called once per sibling in `main()`:
+- `_auto_discover_sibling(inputs, "devices")` → device lookup
+- `_auto_discover_sibling(inputs, "zones")` → zone lookup
+- `_auto_discover_sibling(inputs, "variables")` → variable lookup
+- `_auto_discover_sibling(inputs, "flow_folders")` → folder prefix lookup
+
+Each resolved directory is then passed to the corresponding `_build_*_lookup()` function.
 
 ### Standard flow rendering (`render_standard_flow`)
 
