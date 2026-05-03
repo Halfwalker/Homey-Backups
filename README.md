@@ -115,6 +115,7 @@ Connects directly to the Homey Pro local REST API, fetches devices, flows, zones
 | Dashboards | `/api/manager/dashboards/dashboard` | `Backups/TIMESTAMP/dashboards/` |
 | Light Scenes | `/api/manager/moods/mood` | `Backups/TIMESTAMP/moods/` |
 | System Info | `/api/manager/system/state` | `Backups/TIMESTAMP/meta.json` |
+| Geolocation | `/api/manager/geolocation/state` + `/option/location` + `/option/address` | `Backups/TIMESTAMP/geolocation.json` |
 
 > **⚠️ What is NOT backed up**
 >
@@ -122,7 +123,6 @@ Connects directly to the Homey Pro local REST API, fetches devices, flows, zones
 > - Homey Insights data and history
 > - Energy cost configuration
 > - User accounts and permission settings
-> - Geolocation / home address
 > - Homey cloud backup history
 >
 > For full disaster recovery, combine this toolchain with **Homey's own cloud backup** (Homey app → Settings → Backup).
@@ -142,6 +142,8 @@ Each backup run creates a new timestamped directory (`YYYY-MM-DD_HH-MM`). If the
 | Flag | Description |
 |---|---|
 | `--force` | Overwrite an existing backup directory for the same timestamp (default: abort if directory exists) |
+| `--render-svg` | After backup, render all flow diagrams as SVG files alongside the flow JSON (invokes `homey_flow_svg.py`) |
+| `--render-png` | After backup, render all flow diagrams as PNG images — requires `cairosvg` (invokes `homey_flow_svg.py --png`) |
 | `--version` | Print version and exit |
 
 > **Note:** If `HOMEY_API_TOKEN` doesn't look like a JWT, backup.py prints a non-fatal warning and continues. The backup will still run — the warning is informational only.
@@ -306,6 +308,7 @@ Homey_Backups/
         ├── moods/           ← one JSON per light scene
         ├── variables/       ← one JSON per variable
         ├── zones/           ← one JSON per zone
+        ├── geolocation.json ← home location config (lat/lon, address, mode)
         └── meta.json        ← system info snapshot
 ```
 
