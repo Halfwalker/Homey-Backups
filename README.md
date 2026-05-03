@@ -100,7 +100,7 @@ Or add the exports to your shell profile (`~/.zshrc`, `~/.bashrc`) for permanent
 
 ### `backup.py` — Back Up Your Homey
 
-Connects directly to the Homey Pro local REST API, fetches all devices, flows, zones, and logic variables, and saves each item as an individual JSON file.
+Connects directly to the Homey Pro local REST API, fetches devices, flows, zones, logic variables, installed apps, dashboards, light scenes, and system info, and saves each item as an individual JSON file.
 
 #### What it backs up
 
@@ -111,15 +111,18 @@ Connects directly to the Homey Pro local REST API, fetches all devices, flows, z
 | Flow Folders | `/api/manager/flow/flowfolder` | `Backups/TIMESTAMP/flow_folders/` |
 | Zones | `/api/manager/zones/zone` | `Backups/TIMESTAMP/zones/` |
 | Variables | `/api/manager/logic/variable` + BLL app | `Backups/TIMESTAMP/variables/` |
+| Apps | `/api/manager/apps/app` + per-app `/settings` | `Backups/TIMESTAMP/apps/` |
+| Dashboards | `/api/manager/dashboards/dashboard` | `Backups/TIMESTAMP/dashboards/` |
+| Light Scenes | `/api/manager/moods/mood` | `Backups/TIMESTAMP/moods/` |
+| System Info | `/api/manager/system/state` | `Backups/TIMESTAMP/meta.json` |
 
 > **⚠️ What is NOT backed up**
 >
 > This toolchain is a **partial backup**, not a full Homey state snapshot. The following are **not** captured:
 > - Homey Insights data and history
-> - Third-party app settings and state (e.g. Unifi Protect config, BLL scripts)
 > - Energy cost configuration
-> - Dashboards and home screen layout
 > - User accounts and permission settings
+> - Geolocation / home address
 > - Homey cloud backup history
 >
 > For full disaster recovery, combine this toolchain with **Homey's own cloud backup** (Homey app → Settings → Backup).
@@ -295,11 +298,15 @@ Homey_Backups/
 ├── RECOVERY.md          ← Full factory-reset recovery playbook
 └── Backups/
     └── YYYY-MM-DD_HH-MM/    ← one directory per backup run
+        ├── apps/            ← one JSON per app (with settings embedded)
+        ├── dashboards/      ← one JSON per dashboard
         ├── devices/         ← one JSON per device
         ├── flow_folders/    ← one JSON per flow folder
         ├── flows/           ← one JSON per flow
+        ├── moods/           ← one JSON per light scene
         ├── variables/       ← one JSON per variable
-        └── zones/           ← one JSON per zone
+        ├── zones/           ← one JSON per zone
+        └── meta.json        ← system info snapshot
 ```
 
 ---
@@ -309,7 +316,7 @@ Homey_Backups/
 ### Running tests locally
 
 ```bash
-./tests/run_tests.sh           # run all tests (uses uv)
+./tests/run_tests.sh           # lint (ruff) + run all tests (uses uv)
 ./tests/run_tests.sh -v        # verbose
 ./tests/run_tests.sh -k backup # filter by name
 ```
