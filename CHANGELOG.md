@@ -45,5 +45,5 @@ Initial release.
 - `restore.py` updated to discover backups under `Backups/<TIMESTAMP>/`
 - `_backup_items()` helper extracted in `backup.py` to eliminate per-category boilerplate
 
-[Unreleased]: https://github.com/deanouk/Homey-Backups/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/deanouk/Homey-Backups/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Halfwalker/Homey-Backups/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/Halfwalker/Homey-Backups/releases/tag/v0.1.0
