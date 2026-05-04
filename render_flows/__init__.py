@@ -10,4 +10,15 @@ Typical usage::
     svg_text = render_flow(flow_json_path)
 """
 
-# TODO: wire up re-exports from submodules once they are populated
+from render_flows._cli import main
+from render_flows._constants import __version__
+from render_flows._renderers import render_flow, render_standard_flow
+from render_flows._svg_builder import SVGBuilder
+
+__all__ = [
+    "__version__",
+    "main",
+    "render_flow",
+    "render_standard_flow",
+    "SVGBuilder",
+]

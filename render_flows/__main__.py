@@ -5,5 +5,7 @@ This module is intentionally thin — it exists solely to satisfy Python's
 ``__init__.py`` can re-export ``main`` without touching ``__main__``.
 """
 
-# TODO: from render_flows._cli import main
-# TODO: if __name__ == "__main__": main()
+from render_flows._cli import main
+
+if __name__ == "__main__":
+    main()
