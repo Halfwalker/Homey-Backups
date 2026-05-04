@@ -256,3 +256,32 @@ class TestRenderFlows:
 
         err = capsys.readouterr().err
         assert "not found" in err
+
+# ── TestForceFlag ────────────────────────────────────────────────────────
+
+class TestForceFlag:
+    """Tests for the force guard in _backup_items() via backup_devices()."""
+
+    def test_force_false_exits_when_dir_exists(self, tmp_path):
+        import backup
+        existing_dir = tmp_path / "devices"
+        existing_dir.mkdir()
+        api = _make_api(devices=[{"id": "dev-1", "name": "Light"}])
+        with pytest.raises(SystemExit):
+            backup.backup_devices(api, output_dir=existing_dir, force=False)
+
+    def test_force_true_overwrites_existing_dir(self, tmp_path):
+        import backup
+        existing_dir = tmp_path / "devices"
+        existing_dir.mkdir()
+        (existing_dir / "stale.json").write_text("{}")
+        api = _make_api(devices=[{"id": "dev-1", "name": "Light"}])
+        result = backup.backup_devices(api, output_dir=existing_dir, force=True)
+        assert result.saved > 0
+
+    def test_force_false_succeeds_when_dir_missing(self, tmp_path):
+        import backup
+        output_dir = tmp_path / "devices"
+        api = _make_api(devices=[{"id": "dev-1", "name": "Light"}])
+        result = backup.backup_devices(api, output_dir=output_dir, force=False)
+        assert result.saved >= 0
