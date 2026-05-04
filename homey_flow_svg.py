@@ -35,65 +35,25 @@ try:
 except ImportError:
     _cairosvg = None
 
-# ─── Version ─────────────────────────────────────────────────────────
-
-__version__ = "0.1.0"
-
-# ─── Homey Visual Constants ──────────────────────────────────────────
-
-CANVAS_BG  = "#1E1E2E"
-GRID_COLOR = "#2A2A3A"
-
-# Card dimensions by type → (width, height)
-# Note height is dynamic (computed from text length)
-CARD_DIMS: dict[str, tuple[int, int]] = {
-    "trigger":   (340, 72),
-    "condition": (340, 72),
-    "action":    (340, 72),
-    "any":       (79, 52),
-    "all":       (79, 52),
-    "start":     (79, 52),
-    "delay":     (220, 64),
-    "note":      (320, 0),
-}
-
-CARD_RADIUS = 10
-
-# Per-type colors  (fill=card bg, stroke=border, accent=type label/bar)
-STYLES: dict[str, dict[str, str]] = {
-    "trigger":   {"fill": "#162B1F", "stroke": "#27AE60", "accent": "#2ECC71"},
-    "condition": {"fill": "#162232", "stroke": "#2980B9", "accent": "#3498DB"},
-    "action":    {"fill": "#321E16", "stroke": "#D35400", "accent": "#E67E22"},
-    "any":       {"fill": "#32291A", "stroke": "#E67E22", "accent": "#F39C12"},
-    "all":       {"fill": "#1A2432", "stroke": "#2980B9", "accent": "#3498DB"},
-    "start":     {"fill": "#162B1F", "stroke": "#27AE60", "accent": "#2ECC71"},
-    "delay":     {"fill": "#24163A", "stroke": "#8E44AD", "accent": "#9B59B6"},
-    "note":      {"fill": "#FFF9C4", "stroke": "#F9A82520", "accent": "#F9A825"},
-}
-
-NOTE_FILLS: dict[str, str] = {
-    "yellow": "#FFF9C4",
-    "red":    "#FFCDD2",
-    "green":  "#C8E6C9",
-    "blue":   "#BBDEFB",
-    "purple": "#E1BEE7",
-    "grey":   "#CFD8DC",
-    "gray":   "#CFD8DC",
-}
-
-# Connection / wire colors
-CONN_SUCCESS = "#3498DB"   # outputSuccess → blue
-CONN_TRUE    = "#2ECC71"   # outputTrue    → green
-CONN_FALSE   = "#f59e0b"   # outputFalse   → amber
-CONN_ERROR   = "#F39C12"   # outputError   → amber/orange
-
-TEXT_LIGHT = "#D4D4D8"
-TEXT_DARK  = "#1E1E2E"
-TEXT_MUTED = "#71717A"
-
-FONT = "'Inter','Segoe UI',system-ui,sans-serif"
-PADDING = 80
-TITLE_H = 50
+# ─── Constants (canonical source: render_flows/_constants.py) ────────
+from render_flows._constants import (  # noqa: E402
+    __version__,
+    CANVAS_BG,
+    GRID_COLOR,
+    CARD_DIMS,
+    CARD_RADIUS,
+    STYLES,
+    NOTE_FILLS,
+    CONN_SUCCESS,
+    CONN_TRUE,
+    CONN_FALSE,
+    CONN_ERROR,
+    TEXT_LIGHT,
+    TEXT_DARK,
+    FONT,
+    PADDING,
+    TITLE_H,
+)
 
 
 # ─── SVG Builder (zero external dependencies) ────────────────────────
