@@ -31,11 +31,14 @@ def main() -> None:
         description="Render Homey flow JSON files (standard and advanced) as SVG/PNG diagrams",
         epilog=(
             "Examples:\n"
-            "  python homey_flow_svg.py flow.json\n"
-            "  python homey_flow_svg.py flow.json -o diagram.svg\n"
-            "  python homey_flow_svg.py flows/*.json -d svg_output/\n"
-            "  python homey_flow_svg.py flows/*.json -d svg_output/ "
+            "  python -m render_flows flow.json\n"
+            "  python -m render_flows flow.json -o diagram.svg\n"
+            "  python -m render_flows flows/*.json -d svg_output/\n"
+            "  python -m render_flows flows/*.json -d svg_output/ "
             "--devices-dir devices/2026-04-22_13-52/\n"
+            "\n"
+            "The legacy 'python homey_flow_svg.py' invocation still works "
+            "(backward-compat shim).\n"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )

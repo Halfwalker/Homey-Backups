@@ -50,10 +50,13 @@ HOMEY_API_URL=http://192.168.x.x HOMEY_API_TOKEN=your-token uv run backup.py
 # Browse backups interactively and prepare re-imports
 uv run restore.py
 
-# Render a flow as SVG (no dependencies needed)
-python homey_flow_svg.py Backups/2026-04-26_14-05/flows/my-flow-uuid.json
+# Render a flow as SVG — modern form (render_flows package):
+python -m render_flows Backups/2026-04-26_14-05/flows/my-flow-uuid.json
 # or batch-render a whole backup run:
-python homey_flow_svg.py Backups/2026-04-26_14-05/flows/*.json -d flow-rendering/
+python -m render_flows Backups/2026-04-26_14-05/flows/*.json -d flow-rendering/
+
+# Legacy form still works unchanged (backward-compat shim):
+python homey_flow_svg.py Backups/2026-04-26_14-05/flows/my-flow-uuid.json
 ```
 
 Or, if you prefer a shared virtual environment (useful if you want IDE autocomplete or a persistent install):
@@ -63,7 +66,7 @@ uv sync          # creates .venv and installs all dependencies
 uv run backup.py # run within the project venv
 ```
 
-> Note: only `backup.py` and `restore.py` need dependencies. `homey_flow_svg.py` is stdlib-only and can be run directly with `python homey_flow_svg.py ...` without uv.
+> Note: only `backup.py` and `restore.py` need dependencies. The `render_flows` package (`python -m render_flows`) and the legacy `homey_flow_svg.py` shim are both stdlib-only and can be run directly with `python` without uv.
 
 ---
 
@@ -246,7 +249,9 @@ After a factory reset, restore in this exact order to avoid broken references:
 
 ---
 
-### `homey_flow_svg.py` — Visualise Flows as SVG
+### `render_flows` — Visualise Flows as SVG
+
+> **`homey_flow_svg.py` is a backward-compat shim** — it delegates to the `render_flows` package. Both invocations produce identical output; prefer `python -m render_flows` for new workflows.
 
 Renders Homey flow JSON backups — both standard and advanced flows — as SVG diagrams matching Homey's dark-themed visual editor. **Zero required external dependencies** — stdlib only (optional `cairosvg` for PNG export).
 
@@ -254,13 +259,16 @@ Renders Homey flow JSON backups — both standard and advanced flows — as SVG 
 
 ```bash
 # Single flow (SVG written alongside the JSON)
-python homey_flow_svg.py Backups/2026-04-26_14-05/flows/my-flow-uuid.json
+python -m render_flows Backups/2026-04-26_14-05/flows/my-flow-uuid.json
 
 # Specify output path
-python homey_flow_svg.py Backups/2026-04-26_14-05/flows/my-flow-uuid.json -o diagram.svg
+python -m render_flows Backups/2026-04-26_14-05/flows/my-flow-uuid.json -o diagram.svg
 
 # Batch render all flows from a backup run
-python homey_flow_svg.py Backups/2026-04-26_14-05/flows/*.json -d flow-rendering/
+python -m render_flows Backups/2026-04-26_14-05/flows/*.json -d flow-rendering/
+
+# Legacy invocation (backward-compat shim — still works unchanged)
+python homey_flow_svg.py Backups/2026-04-26_14-05/flows/my-flow-uuid.json
 ```
 
 Device, zone, and variable names are **auto-resolved** from matching backup timestamp directories — provided the flow files are at `Backups/TIMESTAMP/flows/` and the corresponding backup dirs (`Backups/TIMESTAMP/devices/`, `Backups/TIMESTAMP/zones/`, `Backups/TIMESTAMP/variables/`) exist at the same level. If you ran `backup.py` before rendering in the standard layout, names are picked up automatically. Otherwise, use `--devices-dir`, `--zones-dir`, or `--variables-dir` to specify paths manually.
@@ -294,7 +302,16 @@ Device, zone, and variable names are **auto-resolved** from matching backup time
 Homey_Backups/
 ├── backup.py            ← Fetches and saves from Homey via REST API
 ├── restore.py           ← Interactive CLI to browse and prepare re-imports
-├── homey_flow_svg.py    ← Renders flow JSON as SVG diagrams
+├── homey_flow_svg.py    ← Backward-compat shim (delegates to render_flows/)
+├── render_flows/        ← Flow-to-SVG rendering package
+│   ├── __init__.py      ← Public re-exports
+│   ├── __main__.py      ← `python -m render_flows` entry point
+│   ├── _cli.py          ← CLI argument parsing and orchestration
+│   ├── _constants.py    ← Colors, fonts, dimensions, __version__
+│   ├── _label_parser.py ← Label/token resolution
+│   ├── _lookups.py      ← Device/zone/variable lookup builders
+│   ├── _renderers.py    ← render_flow, render_standard_flow
+│   └── _svg_builder.py  ← SVGBuilder class
 ├── pyproject.toml       ← Project metadata and shared dependencies (uv)
 ├── README.md            ← This file
 ├── RECOVERY.md          ← Full factory-reset recovery playbook
