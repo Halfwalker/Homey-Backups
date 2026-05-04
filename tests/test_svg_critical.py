@@ -1,5 +1,5 @@
 """
-Tests for Critical Fix 1.3 — SVG batch mode must not abort on a single corrupt flow.
+Tests for homey_flow_svg.py critical behaviour and utility functions.
 
 Run:  pytest tests/test_svg_critical.py -v
 """
@@ -116,3 +116,61 @@ class TestSVGBatchCritical:
         assert (out_dir / "good.svg").exists(), (
             "Good standard flow was not rendered — bad flow should not abort the batch"
         )
+
+
+# ── _auto_discover_sibling ───────────────────────────────────────────────
+
+
+class TestAutoDiscoverSibling:
+    def test_returns_sibling_dir_when_exists(self, tmp_path):
+        """Returns the sibling directory when the input file is in flows/ under a timestamp."""
+        import homey_flow_svg
+
+        # Create: tmp/2026-05-03_10-00/flows/my-flow.json + tmp/.../devices/
+        ts_dir = tmp_path / "2026-05-03_10-00"
+        flows_dir = ts_dir / "flows"
+        flows_dir.mkdir(parents=True)
+        devices_dir = ts_dir / "devices"
+        devices_dir.mkdir()
+        flow_file = flows_dir / "my-flow.json"
+        flow_file.write_text("{}")
+
+        result = homey_flow_svg._auto_discover_sibling([str(flow_file)], "devices")
+
+        assert result == devices_dir
+
+    def test_returns_none_when_sibling_missing(self, tmp_path):
+        """Returns None when the sibling directory does not exist on disk."""
+        import homey_flow_svg
+
+        ts_dir = tmp_path / "2026-05-03_10-00"
+        flows_dir = ts_dir / "flows"
+        flows_dir.mkdir(parents=True)
+        # No devices/ sibling created
+        flow_file = flows_dir / "my-flow.json"
+        flow_file.write_text("{}")
+
+        result = homey_flow_svg._auto_discover_sibling([str(flow_file)], "devices")
+
+        assert result is None
+
+    def test_returns_none_when_parent_is_not_flows(self, tmp_path):
+        """Returns None when the input file is not in a directory named 'flows'."""
+        import homey_flow_svg
+
+        some_dir = tmp_path / "random_dir"
+        some_dir.mkdir()
+        flow_file = some_dir / "my-flow.json"
+        flow_file.write_text("{}")
+
+        result = homey_flow_svg._auto_discover_sibling([str(flow_file)], "devices")
+
+        assert result is None
+
+    def test_returns_none_for_empty_inputs(self, tmp_path):
+        """Returns None when inputs list is empty."""
+        import homey_flow_svg
+
+        result = homey_flow_svg._auto_discover_sibling([], "devices")
+
+        assert result is None
