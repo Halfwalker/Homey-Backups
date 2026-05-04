@@ -177,10 +177,10 @@ class TestAutoDiscoverSibling:
 
 # ── TestFolderPrefixInSVG ────────────────────────────────────────────────
 
-import sys as _sys
-import pathlib as _pathlib
+import sys as _sys  # noqa: E402
+import pathlib as _pathlib  # noqa: E402
 _sys.path.insert(0, str(_pathlib.Path(__file__).parent.parent))
-import homey_flow_svg
+import homey_flow_svg  # noqa: E402
 
 FOLDER_FLOW = {
     "id": "flow-with-folder",
