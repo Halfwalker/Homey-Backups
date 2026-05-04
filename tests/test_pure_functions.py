@@ -8,8 +8,11 @@ import pathlib
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 
+import json as _json
 import backup
 import homey_flow_svg as svg_mod
+import restore
+from unittest.mock import patch
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 4.1  _dict_to_list()
@@ -386,3 +389,69 @@ class TestParseLabel:
                 card["args"] = {"delay": {"number": 1, "multiplier": 1}}
             result = self._label(card)
             assert isinstance(result, str), f"Expected str for type={ctype}"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# _build_folder_lookup()
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestBuildFolderLookup:
+    """Tests for homey_flow_svg._build_folder_lookup()"""
+
+    def test_returns_mapping_for_valid_json(self, tmp_path):
+        f = tmp_path / "folder-abc.json"
+        f.write_text(_json.dumps({"id": "folder-abc", "name": "Morning"}), encoding="utf-8")
+        result = svg_mod._build_folder_lookup(tmp_path)
+        assert result == {"folder-abc": "Morning"}
+
+    def test_skips_json_missing_name(self, tmp_path):
+        f = tmp_path / "folder-abc.json"
+        f.write_text(_json.dumps({"id": "folder-abc"}), encoding="utf-8")
+        result = svg_mod._build_folder_lookup(tmp_path)
+        assert "folder-abc" not in result
+
+    def test_returns_empty_for_nonexistent_dir(self, tmp_path):
+        result = svg_mod._build_folder_lookup(tmp_path / "does-not-exist")
+        assert result == {}
+
+    def test_multiple_folders_all_mapped(self, tmp_path):
+        (tmp_path / "a.json").write_text(_json.dumps({"id": "id-a", "name": "Alpha"}), encoding="utf-8")
+        (tmp_path / "b.json").write_text(_json.dumps({"id": "id-b", "name": "Beta"}), encoding="utf-8")
+        result = svg_mod._build_folder_lookup(tmp_path)
+        assert result == {"id-a": "Alpha", "id-b": "Beta"}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# list_backup_dates()
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestListBackupDates:
+    """Tests for restore.list_backup_dates()"""
+
+    def test_returns_paths_sorted_by_name(self, tmp_path):
+        root = tmp_path / "Backups"
+        (root / "2026-04-20_10-00" / "devices").mkdir(parents=True)
+        (root / "2026-04-25_10-00" / "devices").mkdir(parents=True)
+        with patch.object(restore, "_BACKUPS_ROOT", root):
+            result = restore.list_backup_dates("device")
+        assert len(result) == 2
+        assert result[0].parent.name < result[1].parent.name
+
+    def test_excludes_dirs_without_underscore(self, tmp_path):
+        root = tmp_path / "Backups"
+        (root / "nodash" / "devices").mkdir(parents=True)
+        with patch.object(restore, "_BACKUPS_ROOT", root):
+            result = restore.list_backup_dates("device")
+        assert result == []
+
+    def test_excludes_timestamp_dir_without_category_subdir(self, tmp_path):
+        root = tmp_path / "Backups"
+        (root / "2026-04-20_10-00").mkdir(parents=True)
+        # no devices/ subdir
+        with patch.object(restore, "_BACKUPS_ROOT", root):
+            result = restore.list_backup_dates("device")
+        assert result == []
+
+    def test_returns_empty_when_backups_root_missing(self, tmp_path):
+        with patch.object(restore, "_BACKUPS_ROOT", tmp_path / "Backups"):
+            result = restore.list_backup_dates("device")
+        assert result == []

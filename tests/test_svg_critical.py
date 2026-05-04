@@ -174,3 +174,51 @@ class TestAutoDiscoverSibling:
         result = homey_flow_svg._auto_discover_sibling([], "devices")
 
         assert result is None
+
+# ── TestFolderPrefixInSVG ────────────────────────────────────────────────
+
+import sys as _sys
+import pathlib as _pathlib
+_sys.path.insert(0, str(_pathlib.Path(__file__).parent.parent))
+import homey_flow_svg
+
+FOLDER_FLOW = {
+    "id": "flow-with-folder",
+    "name": "My Flow",
+    "enabled": True,
+    "folder": "folder-uuid-123",
+    "cards": {
+        "card-1": {
+            "type": "trigger",
+            "id": "homey:device:abc:alarm_motion",
+            "x": 100,
+            "y": 100,
+            "outputSuccess": [],
+        }
+    },
+}
+
+
+class TestFolderPrefixInSVG:
+    """Tests that folder name prefix appears in SVG title when folder_lookup is provided."""
+
+    def test_folder_prefix_appears_in_svg_title(self, tmp_path):
+        output_path = tmp_path / "out.svg"
+        homey_flow_svg.render_flow(
+            FOLDER_FLOW,
+            str(output_path),
+            folder_lookup={"folder-uuid-123": "Morning"},
+        )
+        svg_text = output_path.read_text(encoding="utf-8")
+        assert "Morning / My Flow" in svg_text
+
+    def test_no_folder_prefix_when_lookup_empty(self, tmp_path):
+        output_path = tmp_path / "out.svg"
+        homey_flow_svg.render_flow(
+            FOLDER_FLOW,
+            str(output_path),
+            folder_lookup={},
+        )
+        svg_text = output_path.read_text(encoding="utf-8")
+        assert "Morning" not in svg_text
+        assert "My Flow" in svg_text
