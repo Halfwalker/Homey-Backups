@@ -41,7 +41,7 @@ If you are restoring a Homey Pro after a factory reset, see **[RECOVERY.md](RECO
 
 ## Quick Start
 
-`backup.py` and `restore.py` are self-contained [uv inline scripts](https://docs.astral.sh/uv/guides/scripts/#declaring-script-dependencies) — no venv setup needed. `homey_flow_svg.py` is stdlib-only (no uv header required):
+`backup.py` and `restore.py` are self-contained [uv inline scripts](https://docs.astral.sh/uv/guides/scripts/#declaring-script-dependencies) — no venv setup needed. `render_flows.py` is stdlib-only (no uv header required):
 
 ```bash
 # Back up everything
@@ -50,10 +50,12 @@ HOMEY_API_URL=http://192.168.x.x HOMEY_API_TOKEN=your-token uv run backup.py
 # Browse backups interactively and prepare re-imports
 uv run restore.py
 
-# Render a flow as SVG (no dependencies needed)
-python homey_flow_svg.py Backups/2026-04-26_14-05/flows/my-flow-uuid.json
+# Render a flow as SVG — primary invocation:
+uv run render_flows.py Backups/2026-04-26_14-05/flows/my-flow-uuid.json
 # or batch-render a whole backup run:
-python homey_flow_svg.py Backups/2026-04-26_14-05/flows/*.json -d flow-rendering/
+uv run render_flows.py Backups/2026-04-26_14-05/flows/*.json -d flow-rendering/
+# or via the package:
+python -m render_flows Backups/2026-04-26_14-05/flows/*.json -d flow-rendering/
 ```
 
 Or, if you prefer a shared virtual environment (useful if you want IDE autocomplete or a persistent install):
@@ -63,7 +65,7 @@ uv sync          # creates .venv and installs all dependencies
 uv run backup.py # run within the project venv
 ```
 
-> Note: only `backup.py` and `restore.py` need dependencies. `homey_flow_svg.py` is stdlib-only and can be run directly with `python homey_flow_svg.py ...` without uv.
+> Note: only `backup.py` and `restore.py` need dependencies. `render_flows.py` (`python -m render_flows` or `uv run render_flows.py`) is stdlib-only and can be run directly with `python` without uv.
 
 ---
 
@@ -142,8 +144,8 @@ Each backup run creates a new timestamped directory (`YYYY-MM-DD_HH-MM`). If the
 | Flag | Description |
 |---|---|
 | `--force` | Overwrite an existing backup directory for the same timestamp (default: abort if directory exists) |
-| `--render-svg` | After backup, render all flow diagrams as SVG files alongside the flow JSON (invokes `homey_flow_svg.py`) |
-| `--render-png` | After backup, render all flow diagrams as PNG images — requires `cairosvg` (invokes `homey_flow_svg.py --png`) |
+| `--render-svg` | After backup, render all flow diagrams as SVG files alongside the flow JSON (invokes `render_flows.py`) |
+| `--render-png` | After backup, render all flow diagrams as PNG images — requires `cairosvg` (invokes `render_flows.py --png`) |
 | `--version` | Print version and exit |
 
 > **Note:** If `HOMEY_API_TOKEN` doesn't look like a JWT, backup.py prints a non-fatal warning and continues. The backup will still run — the warning is informational only.
@@ -246,7 +248,9 @@ After a factory reset, restore in this exact order to avoid broken references:
 
 ---
 
-### `homey_flow_svg.py` — Visualise Flows as SVG
+### `render_flows` — Visualise Flows as SVG
+
+> **`render_flows.py`** is the primary script. The `render_flows/` package is the implementation. Both `uv run render_flows.py` and `python -m render_flows` work.
 
 Renders Homey flow JSON backups — both standard and advanced flows — as SVG diagrams matching Homey's dark-themed visual editor. **Zero required external dependencies** — stdlib only (optional `cairosvg` for PNG export).
 
@@ -254,13 +258,16 @@ Renders Homey flow JSON backups — both standard and advanced flows — as SVG 
 
 ```bash
 # Single flow (SVG written alongside the JSON)
-python homey_flow_svg.py Backups/2026-04-26_14-05/flows/my-flow-uuid.json
+python -m render_flows Backups/2026-04-26_14-05/flows/my-flow-uuid.json
 
 # Specify output path
-python homey_flow_svg.py Backups/2026-04-26_14-05/flows/my-flow-uuid.json -o diagram.svg
+python -m render_flows Backups/2026-04-26_14-05/flows/my-flow-uuid.json -o diagram.svg
 
 # Batch render all flows from a backup run
-python homey_flow_svg.py Backups/2026-04-26_14-05/flows/*.json -d flow-rendering/
+python -m render_flows Backups/2026-04-26_14-05/flows/*.json -d flow-rendering/
+
+# Also works as a script:
+uv run render_flows.py Backups/2026-04-26_14-05/flows/my-flow-uuid.json
 ```
 
 Device, zone, and variable names are **auto-resolved** from matching backup timestamp directories — provided the flow files are at `Backups/TIMESTAMP/flows/` and the corresponding backup dirs (`Backups/TIMESTAMP/devices/`, `Backups/TIMESTAMP/zones/`, `Backups/TIMESTAMP/variables/`) exist at the same level. If you ran `backup.py` before rendering in the standard layout, names are picked up automatically. Otherwise, use `--devices-dir`, `--zones-dir`, or `--variables-dir` to specify paths manually.
@@ -294,7 +301,16 @@ Device, zone, and variable names are **auto-resolved** from matching backup time
 Homey_Backups/
 ├── backup.py            ← Fetches and saves from Homey via REST API
 ├── restore.py           ← Interactive CLI to browse and prepare re-imports
-├── homey_flow_svg.py    ← Renders flow JSON as SVG diagrams
+├── render_flows.py      ← Primary render script (delegates to render_flows/)
+├── render_flows/        ← Flow-to-SVG rendering package
+│   ├── __init__.py      ← Public re-exports
+│   ├── __main__.py      ← `python -m render_flows` entry point
+│   ├── _cli.py          ← CLI argument parsing and orchestration
+│   ├── _constants.py    ← Colors, fonts, dimensions, __version__
+│   ├── _label_parser.py ← Label/token resolution
+│   ├── _lookups.py      ← Device/zone/variable lookup builders
+│   ├── _renderers.py    ← render_flow, render_standard_flow
+│   └── _svg_builder.py  ← SVGBuilder class
 ├── pyproject.toml       ← Project metadata and shared dependencies (uv)
 ├── README.md            ← This file
 ├── RECOVERY.md          ← Full factory-reset recovery playbook
