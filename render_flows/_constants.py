@@ -1,9 +1,10 @@
 """Visual constants for Homey flow rendering.
 
 All colours, fonts, layout dimensions, and per-card-type style tables live
-here.  Every other module in the package imports from this file; nothing in
-this module imports from the rest of the package (it is a leaf node in the
-dependency graph).
+here.  Imported by ``_renderers``, ``_cli``, and ``__init__``; the other
+internal modules (``_label_parser``, ``_svg_builder``, ``_lookups``) are
+independent of these values.  Nothing in this module imports from the rest
+of the package (it is a leaf node in the dependency graph).
 
 Colour values match Homey's dark-themed visual editor style so that
 rendered SVGs feel native to the Homey UI.
@@ -80,7 +81,6 @@ CONN_ERROR   = "#F39C12"   # outputError   → amber/orange
 
 TEXT_LIGHT = "#D4D4D8"   # primary text on dark card backgrounds
 TEXT_DARK  = "#1E1E2E"   # text on light surfaces (note cards)
-TEXT_MUTED = "#71717A"   # secondary / dimmed text (type labels)
 
 # ─── Layout ──────────────────────────────────────────────────────────
 

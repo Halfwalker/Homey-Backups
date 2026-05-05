@@ -23,11 +23,6 @@ Connection types: outputSuccess (blue), outputTrue (green), outputFalse (amber),
 
 from __future__ import annotations
 
-try:
-    import cairosvg as _cairosvg
-except ImportError:
-    _cairosvg = None
-
 # ─── SVG Builder (canonical source: render_flows/_svg_builder.py) ─────
 from render_flows._svg_builder import SVGBuilder  # noqa: F401 — re-exported for backward compat
 

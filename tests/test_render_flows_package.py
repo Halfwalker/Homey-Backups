@@ -50,3 +50,15 @@ class TestPackageImports:
     def test_build_folder_lookup_empty_dir(self, tmp_path):
         result = _build_folder_lookup(tmp_path / "does-not-exist")
         assert result == {}
+
+    def test_shim_re_exports_all_symbols(self):
+        """Shim must re-export every symbol tests access via homey_flow_svg.*"""
+        import homey_flow_svg
+        for attr in (
+            "render_flow", "render_standard_flow", "SVGBuilder",
+            "_stem_uuid", "_word_wrap", "_parse_label",
+            "_card_dims", "_card_badge", "_bezier",
+            "_auto_discover_sibling", "_build_folder_lookup",
+            "main",
+        ):
+            assert hasattr(homey_flow_svg, attr), f"shim missing: {attr}"

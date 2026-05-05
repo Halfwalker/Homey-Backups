@@ -21,7 +21,7 @@ three to produce a final human-readable label from raw card JSON.
 
 Leaf node: imports only from the Python stdlib (``re``).  No module in this
 package imports from ``_label_parser`` except ``_svg_builder`` (for
-``_word_wrap``) and ``_renderers`` (for ``_parse_label``).
+``_word_wrap``) and ``_renderers`` (for ``_parse_label`` and ``_word_wrap``).
 """
 
 from __future__ import annotations

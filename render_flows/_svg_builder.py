@@ -70,8 +70,8 @@ class SVGBuilder:
                        line_h: float = 15, **kw: object) -> None:
         """Render word-wrapped text using <tspan> elements."""
         a = self._attrs(**kw)
-        lines = _word_wrap(content, max_chars)[:max_lines]
         all_lines = _word_wrap(content, max_chars)
+        lines = all_lines[:max_lines]
         if len(lines) < len(all_lines):
             lines[-1] = lines[-1][: max_chars] + "…"
         spans = ""
