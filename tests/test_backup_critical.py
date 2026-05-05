@@ -200,8 +200,8 @@ class TestRenderFlows:
         flow_file = flows_dir / "my-flow.json"
         flow_file.write_text("{}")
 
-        # Place a fake homey_flow_svg.py next to backup.py
-        svg_script = pathlib.Path(backup.__file__).parent / "homey_flow_svg.py"
+        # Place a fake render_flows.py next to backup.py
+        svg_script = pathlib.Path(backup.__file__).parent / "render_flows.py"
         created = False
         if not svg_script.exists():
             svg_script.write_text("# stub\n")
@@ -226,7 +226,7 @@ class TestRenderFlows:
         flows_dir.mkdir()
         (flows_dir / "flow.json").write_text("{}")
 
-        svg_script = pathlib.Path(backup.__file__).parent / "homey_flow_svg.py"
+        svg_script = pathlib.Path(backup.__file__).parent / "render_flows.py"
         created = False
         if not svg_script.exists():
             svg_script.write_text("# stub\n")
@@ -242,7 +242,7 @@ class TestRenderFlows:
                 svg_script.unlink()
 
     def test_missing_svg_script_prints_error_not_exception(self, tmp_path, capsys):
-        """If homey_flow_svg.py is not found, an error is printed (no crash)."""
+        """If render_flows.py is not found, an error is printed (no crash)."""
         import backup
 
         flows_dir = tmp_path / "flows"

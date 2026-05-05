@@ -17,7 +17,6 @@ dev = ["pytest>=8.0", "pytest-mock>=3.14", "ruff>=0.4"]
 [project.scripts]
 homey-backup = "backup:main"
 homey-restore = "restore:main"
-homey-flow-svg = "homey_flow_svg:main"
 render-flows = "render_flows:main"
 
 [dependency-groups]
@@ -28,5 +27,5 @@ dev = [
 ]
 
 [tool.setuptools]
-py-modules = ["backup", "restore", "homey_flow_svg"]
+py-modules = ["backup", "restore"]
 packages = ["render_flows"]

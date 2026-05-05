@@ -729,7 +729,7 @@ def _print_summary(results: list[BackupResult]) -> None:
 
 
 def _render_flows(flows_dir: pathlib.Path, *, png: bool = False) -> None:
-    """Invoke homey_flow_svg.py on all flow JSON files in *flows_dir*.
+    """Invoke render_flows.py on all flow JSON files in *flows_dir*.
 
     Called after backup when --render-svg or --render-png is set.
     Errors from the renderer are printed but do not affect the backup result.
@@ -743,9 +743,9 @@ def _render_flows(flows_dir: pathlib.Path, *, png: bool = False) -> None:
         print(f"\n[SKIP] Flow render: no JSON files found in {flows_dir}.")
         return
 
-    svg_script = pathlib.Path(__file__).parent / "homey_flow_svg.py"
+    svg_script = pathlib.Path(__file__).parent / "render_flows.py"
     if not svg_script.exists():
-        print(f"\n[ERROR] Flow render: homey_flow_svg.py not found at {svg_script}.", file=sys.stderr)
+        print(f"\n[ERROR] Flow render: render_flows.py not found at {svg_script}.", file=sys.stderr)
         return
 
     cmd = [sys.executable, str(svg_script)] + [str(f) for f in flow_files]

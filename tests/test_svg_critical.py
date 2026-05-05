@@ -1,5 +1,5 @@
 """
-Tests for homey_flow_svg.py critical behaviour and utility functions.
+Tests for render_flows.py critical behaviour and utility functions.
 
 Run:  pytest tests/test_svg_critical.py -v
 """
@@ -39,7 +39,7 @@ class TestSVGBatchCritical:
 
     def test_corrupt_flow_does_not_abort_batch(self, tmp_path):
         """A RuntimeError from render_flow() must be caught; other flows must still render."""
-        import homey_flow_svg as svg
+        import render_flows as svg
 
         good_flow_path = tmp_path / "good-flow-1.json"
         bad_flow_path = tmp_path / "bad-flow.json"
@@ -76,7 +76,7 @@ class TestSVGBatchCritical:
 
     def test_render_flow_exception_caught_in_cli_batch(self, tmp_path):
         """The CLI main() batch loop must catch render_flow() exceptions and continue."""
-        import homey_flow_svg as svg
+        import render_flows as svg
 
         good_path = tmp_path / "good.json"
         good_path.write_text(json.dumps(SIMPLE_STANDARD_FLOW), encoding="utf-8")
@@ -96,7 +96,7 @@ class TestSVGBatchCritical:
         import sys
         argv_backup = sys.argv
         sys.argv = [
-            "homey_flow_svg.py",
+            "render_flows.py",
             str(good_path),
             str(bad_path),
             "-d", str(out_dir),
@@ -124,7 +124,7 @@ class TestSVGBatchCritical:
 class TestAutoDiscoverSibling:
     def test_returns_sibling_dir_when_exists(self, tmp_path):
         """Returns the sibling directory when the input file is in flows/ under a timestamp."""
-        import homey_flow_svg
+        import render_flows as homey_flow_svg
 
         # Create: tmp/2026-05-03_10-00/flows/my-flow.json + tmp/.../devices/
         ts_dir = tmp_path / "2026-05-03_10-00"
@@ -135,13 +135,13 @@ class TestAutoDiscoverSibling:
         flow_file = flows_dir / "my-flow.json"
         flow_file.write_text("{}")
 
-        result = homey_flow_svg._auto_discover_sibling([str(flow_file)], "devices")
+        result = homey_flow_svg._lookups._auto_discover_sibling([str(flow_file)], "devices")
 
         assert result == devices_dir
 
     def test_returns_none_when_sibling_missing(self, tmp_path):
         """Returns None when the sibling directory does not exist on disk."""
-        import homey_flow_svg
+        import render_flows as homey_flow_svg
 
         ts_dir = tmp_path / "2026-05-03_10-00"
         flows_dir = ts_dir / "flows"
@@ -150,28 +150,28 @@ class TestAutoDiscoverSibling:
         flow_file = flows_dir / "my-flow.json"
         flow_file.write_text("{}")
 
-        result = homey_flow_svg._auto_discover_sibling([str(flow_file)], "devices")
+        result = homey_flow_svg._lookups._auto_discover_sibling([str(flow_file)], "devices")
 
         assert result is None
 
     def test_returns_none_when_parent_is_not_flows(self, tmp_path):
         """Returns None when the input file is not in a directory named 'flows'."""
-        import homey_flow_svg
+        import render_flows as homey_flow_svg
 
         some_dir = tmp_path / "random_dir"
         some_dir.mkdir()
         flow_file = some_dir / "my-flow.json"
         flow_file.write_text("{}")
 
-        result = homey_flow_svg._auto_discover_sibling([str(flow_file)], "devices")
+        result = homey_flow_svg._lookups._auto_discover_sibling([str(flow_file)], "devices")
 
         assert result is None
 
     def test_returns_none_for_empty_inputs(self, tmp_path):
         """Returns None when inputs list is empty."""
-        import homey_flow_svg
+        import render_flows as homey_flow_svg
 
-        result = homey_flow_svg._auto_discover_sibling([], "devices")
+        result = homey_flow_svg._lookups._auto_discover_sibling([], "devices")
 
         assert result is None
 
@@ -180,7 +180,7 @@ class TestAutoDiscoverSibling:
 import sys as _sys  # noqa: E402
 import pathlib as _pathlib  # noqa: E402
 _sys.path.insert(0, str(_pathlib.Path(__file__).parent.parent))
-import homey_flow_svg  # noqa: E402
+import render_flows as homey_flow_svg  # noqa: E402
 
 FOLDER_FLOW = {
     "id": "flow-with-folder",
