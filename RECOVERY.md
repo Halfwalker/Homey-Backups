@@ -11,17 +11,20 @@ Be honest with yourself about what this toolchain covers. The following **cannot
 | Item | Status | Notes |
 |---|---|---|
 | Flow folder structure | ✅ Backed up | Restore folders before flows; build old→new UUID mapping; flows will be in folders after correct import |
-| Homey Insights history | ❌ Not backed up | Sensor data, energy history — permanently lost |
-| Third-party app settings | ❌ Not backed up | Unifi Protect config, BLL scripts, etc. — must be reconfigured |
-| Energy cost settings | ❌ Not backed up | Electricity tariffs etc. — must be reconfigured |
-| Dashboards / home screen | ❌ Not backed up | Layout must be rebuilt manually |
-| User accounts & invites | ❌ Not backed up | Re-invite users via the Homey app |
-| Zigbee/Z-Wave pairing state | ❌ Cannot be backed up | Physical devices must be re-paired; they receive **new UUIDs** |
-| Devices | ⚠️ Partial | Settings are backed up for reference, but devices must be re-paired and will get new UUIDs |
 | Flows | ✅ Backed up | Can be re-imported; may need UUID fixes after device re-pairing |
 | Zones | ✅ Backed up | Can be re-created via API |
 | Logic variables | ✅ Backed up | Can be re-created via API |
 | BLL variables | ✅ Backed up | Can be re-created via BLL app settings or API |
+| Light scenes (moods) | ✅ Backed up | Saved to `moods/`; can be re-created via API |
+| Home geolocation config | ✅ Backed up | Saved to `geolocation.json`; can be re-applied via API |
+| System info | ✅ Backed up | Hostname, firmware version, language, units etc. saved to `meta.json` — reference only |
+| Devices | ⚠️ Partial | Settings are backed up to `apps/` for reference, but devices must be re-paired and will get new UUIDs |
+| Third-party app settings | ⚠️ Partial | App list + per-app settings JSON backed up to `apps/`; apps must still be manually installed and reconfigured (re-pair, API keys, etc.) |
+| Dashboards / home screen | ⚠️ Partial | Dashboard JSON backed up to `dashboards/`; no Homey API exists to POST dashboards back — must be rebuilt manually (backup is a reference only) |
+| Homey Insights history | ❌ Not backed up | Sensor data, energy history — permanently lost |
+| Energy cost settings | ❌ Not backed up | Electricity tariffs etc. — must be reconfigured |
+| User accounts & invites | ❌ Not backed up | Re-invite users via the Homey app |
+| Zigbee/Z-Wave pairing state | ❌ Cannot be backed up | Physical devices must be re-paired; they receive **new UUIDs** |
 
 > **Tip:** Before a planned factory reset, also run **Homey's own cloud backup** (Homey app → Settings → Backup). This covers some things this toolchain does not.
 
@@ -32,7 +35,9 @@ Be honest with yourself about what this toolchain covers. The following **cannot
 If you haven't performed the factory reset yet, verify these first:
 
 - [ ] Run `uv run backup.py` and confirm the summary shows the expected item counts
-- [ ] Check that a `Backups/` directory was created with today's timestamp and contains `flows/`, `zones/`, `variables/`, `devices/` subdirectories
+- [ ] Check that a `Backups/` directory was created with today's timestamp and contains subdirectories:
+  `flows/`, `zones/`, `variables/`, `devices/`, `apps/`, `moods/`, `dashboards/`
+  and files: `geolocation.json`, `meta.json`
 - [ ] Note your Homey's current IP address (check your router's DHCP table)
 - [ ] Copy your Personal Access Token somewhere safe, or note that you'll need to generate a new one after reset
 - [ ] Note which third-party apps you have installed (BLL, etc.)
