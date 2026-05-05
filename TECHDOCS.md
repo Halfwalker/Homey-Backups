@@ -44,9 +44,9 @@
                                               ▲
                                               │ delegates to
                                      ┌────────┴────────┐
-                                      │ render_flows    │
-                                      │ .py (script     │
-                                      │  entry point)   │
+                                     │ render_flows    │
+                                     │ .py (script     │
+                                     │  entry point)   │
                                      └─────────────────┘
 ```
 
