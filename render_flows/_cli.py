@@ -37,8 +37,7 @@ def main() -> None:
             "  python -m render_flows flows/*.json -d svg_output/ "
             "--devices-dir devices/2026-04-22_13-52/\n"
             "\n"
-            "The legacy 'python homey_flow_svg.py' invocation still works "
-            "(backward-compat shim).\n"
+
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -156,7 +155,7 @@ def main() -> None:
         for _name, _consequence in _missing:
             print(f"  • {_name:<10} → not found ({_consequence})", file=sys.stderr)
         print(
-            "Tip: run homey_flow_svg.py on files inside flows/YYYY-MM-DD_HH-MM/, or pass\n"
+            "Tip: run render_flows.py on files inside flows/YYYY-MM-DD_HH-MM/, or pass\n"
             "     --devices-dir / --zones-dir / --variables-dir explicitly.",
             file=sys.stderr,
         )

@@ -297,7 +297,7 @@ class TestCardDims:
 # ──────────────────────────────────────────────────────────────────────────────
 
 class TestParseLabel:
-    """Smoke tests for homey_flow_svg._parse_label()"""
+    """Smoke tests for render_flows._label_parser._parse_label()"""
 
     def _label(self, card: dict, **kwargs) -> str:
         return _parse_label(card, **kwargs)

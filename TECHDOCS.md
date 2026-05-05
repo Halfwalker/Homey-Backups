@@ -44,13 +44,13 @@
                                               ▲
                                               │ delegates to
                                      ┌────────┴────────┐
-                                     │ homey_flow_svg  │
-                                     │ .py (63-line    │
-                                     │  shim, legacy)  │
+                                      │ render_flows    │
+                                      │ .py (script     │
+                                      │  entry point)   │
                                      └─────────────────┘
 ```
 
-**Network boundary**: Only `backup.py` touches the network. Both `restore.py` and the `render_flows` package (including the `homey_flow_svg.py` shim) are purely offline tools.
+**Network boundary**: Only `backup.py` touches the network. Both `restore.py` and the `render_flows` package (including `render_flows.py`) are purely offline tools.
 
 ---
 
@@ -276,7 +276,7 @@ These constraints are intentional: the tool is a safe, offline browser. Recovery
 
 ### Overview
 
-`homey_flow_svg.py` was refactored into the `render_flows/` package to separate concerns, enable unit testing, and support `python -m render_flows` as the canonical invocation. The original monolith (1605 lines) is now a 63-line backward-compat shim that re-exports from the package.
+`homey_flow_svg.py` was refactored into the `render_flows/` package to separate concerns, enable unit testing, and support `python -m render_flows` as the canonical invocation. The original monolith (1605 lines) was extracted into the package and then renamed to `render_flows.py` for naming consistency. `render_flows.py` is now the primary script entry point.
 
 ### Canonical invocation
 
@@ -286,7 +286,7 @@ python -m render_flows flow.json -o diagram.svg
 python -m render_flows flows/*.json -d svg_output/
 ```
 
-The legacy form `python homey_flow_svg.py ...` continues to work unchanged — it is a thin shim.
+Both `uv run render_flows.py ...` and `python -m render_flows ...` work.
 
 ### Module structure
 
@@ -314,9 +314,9 @@ _constants
 
 Each module only imports from modules to its left in this chain. There are no circular dependencies.
 
-### Backward-compat shim (`homey_flow_svg.py`)
+### render_flows.py script
 
-`homey_flow_svg.py` is now a 63-line file that imports and re-exports the public symbols from `render_flows`:
+`render_flows.py` is the primary script entry point. It imports and re-exports the public symbols from `render_flows/`:
 
 ```python
 from render_flows import render_flow, render_standard_flow, main
@@ -324,13 +324,13 @@ if __name__ == "__main__":
     main()
 ```
 
-It exists solely so that existing scripts, cron jobs, or documentation referencing `python homey_flow_svg.py` continue to work without modification.
+Both `uv run render_flows.py` and `python -m render_flows` invoke the same `main()` function in `render_flows/_cli.py`.
 
 ---
 
-## homey_flow_svg.py
+## render_flows.py
 
-> **This file is now a backward-compat shim.** All rendering logic lives in the `render_flows/` package (see section above). The description below documents the public API and behaviour, which is unchanged.
+> **`render_flows.py` is the primary script.** All rendering logic lives in the `render_flows/` package (see section above). The description below documents the public API and behaviour.
 
 ### Purpose
 
@@ -771,7 +771,7 @@ if scheme == "homey:manager:mynewmanager":
 **Verifying your resolver:**
 ```bash
 # Render a flow that uses cards with the new URI scheme
-python homey_flow_svg.py Backups/TIMESTAMP/flows/your-flow.json -o /tmp/test.svg
+uv run render_flows.py Backups/TIMESTAMP/flows/your-flow.json -o /tmp/test.svg
 # The raw placeholder should no longer appear in the output
 grep "mynewmanager" /tmp/test.svg  # expect no output
 ```
@@ -784,10 +784,10 @@ grep "mynewmanager" /tmp/test.svg  # expect no output
 
 ```bash
 # Render all flows from a backup run
-python homey_flow_svg.py Backups/2026-04-26_14-05/flows/*.json -d test-output/
+uv run render_flows.py Backups/2026-04-26_14-05/flows/*.json -d test-output/
 
 # Render with PNG output for quick visual inspection
-python homey_flow_svg.py Backups/2026-04-26_14-05/flows/*.json -d test-output/ --png
+uv run render_flows.py Backups/2026-04-26_14-05/flows/*.json -d test-output/ --png
 ```
 
 ### What to check visually
@@ -805,7 +805,7 @@ python homey_flow_svg.py Backups/2026-04-26_14-05/flows/*.json -d test-output/ -
 
 ```bash
 # Should render without errors, producing .svg files
-python homey_flow_svg.py Backups/2026-04-26_14-05/flows/some-flow.json
+uv run render_flows.py Backups/2026-04-26_14-05/flows/some-flow.json
 echo $?  # expect 0
 ```
 

@@ -124,7 +124,7 @@ class TestSVGBatchCritical:
 class TestAutoDiscoverSibling:
     def test_returns_sibling_dir_when_exists(self, tmp_path):
         """Returns the sibling directory when the input file is in flows/ under a timestamp."""
-        import render_flows as homey_flow_svg
+        import render_flows
 
         # Create: tmp/2026-05-03_10-00/flows/my-flow.json + tmp/.../devices/
         ts_dir = tmp_path / "2026-05-03_10-00"
@@ -135,13 +135,13 @@ class TestAutoDiscoverSibling:
         flow_file = flows_dir / "my-flow.json"
         flow_file.write_text("{}")
 
-        result = homey_flow_svg._lookups._auto_discover_sibling([str(flow_file)], "devices")
+        result = render_flows._lookups._auto_discover_sibling([str(flow_file)], "devices")
 
         assert result == devices_dir
 
     def test_returns_none_when_sibling_missing(self, tmp_path):
         """Returns None when the sibling directory does not exist on disk."""
-        import render_flows as homey_flow_svg
+        import render_flows
 
         ts_dir = tmp_path / "2026-05-03_10-00"
         flows_dir = ts_dir / "flows"
@@ -150,28 +150,28 @@ class TestAutoDiscoverSibling:
         flow_file = flows_dir / "my-flow.json"
         flow_file.write_text("{}")
 
-        result = homey_flow_svg._lookups._auto_discover_sibling([str(flow_file)], "devices")
+        result = render_flows._lookups._auto_discover_sibling([str(flow_file)], "devices")
 
         assert result is None
 
     def test_returns_none_when_parent_is_not_flows(self, tmp_path):
         """Returns None when the input file is not in a directory named 'flows'."""
-        import render_flows as homey_flow_svg
+        import render_flows
 
         some_dir = tmp_path / "random_dir"
         some_dir.mkdir()
         flow_file = some_dir / "my-flow.json"
         flow_file.write_text("{}")
 
-        result = homey_flow_svg._lookups._auto_discover_sibling([str(flow_file)], "devices")
+        result = render_flows._lookups._auto_discover_sibling([str(flow_file)], "devices")
 
         assert result is None
 
     def test_returns_none_for_empty_inputs(self, tmp_path):
         """Returns None when inputs list is empty."""
-        import render_flows as homey_flow_svg
+        import render_flows
 
-        result = homey_flow_svg._lookups._auto_discover_sibling([], "devices")
+        result = render_flows._lookups._auto_discover_sibling([], "devices")
 
         assert result is None
 
@@ -180,7 +180,7 @@ class TestAutoDiscoverSibling:
 import sys as _sys  # noqa: E402
 import pathlib as _pathlib  # noqa: E402
 _sys.path.insert(0, str(_pathlib.Path(__file__).parent.parent))
-import render_flows as homey_flow_svg  # noqa: E402
+import render_flows  # noqa: E402
 
 FOLDER_FLOW = {
     "id": "flow-with-folder",
@@ -204,7 +204,7 @@ class TestFolderPrefixInSVG:
 
     def test_folder_prefix_appears_in_svg_title(self, tmp_path):
         output_path = tmp_path / "out.svg"
-        homey_flow_svg.render_flow(
+        render_flows.render_flow(
             FOLDER_FLOW,
             str(output_path),
             folder_lookup={"folder-uuid-123": "Morning"},
@@ -214,7 +214,7 @@ class TestFolderPrefixInSVG:
 
     def test_no_folder_prefix_when_lookup_empty(self, tmp_path):
         output_path = tmp_path / "out.svg"
-        homey_flow_svg.render_flow(
+        render_flows.render_flow(
             FOLDER_FLOW,
             str(output_path),
             folder_lookup={},

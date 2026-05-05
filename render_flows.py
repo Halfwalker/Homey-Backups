@@ -4,18 +4,18 @@
 # dependencies = ["cairosvg>=2.7"]
 # ///
 """
-homey_flow_svg.py — Homey Flow → SVG/PNG Visualizer
+render_flows.py — Homey Flow → SVG/PNG Visualizer
 
 Renders Homey flow JSON exports (both standard and advanced flows) as SVG
 diagrams matching Homey's dark-themed visual editor style.
-Run with `uv run homey_flow_svg.py` — uv auto-installs cairosvg (for --png).
+Run with `uv run render_flows.py` — uv auto-installs cairosvg (for --png).
 Also needs the libcairo2 native library (Linux: `sudo apt install libcairo2-dev`).
 
 Usage:
-    python homey_flow_svg.py path/to/flow.json
-    python homey_flow_svg.py path/to/flow.json -o custom-name.svg
-    python homey_flow_svg.py Homey_Backups/flows/2026-04-22_13-52/*.json -d output/
-    python homey_flow_svg.py flow.json --png
+    python render_flows.py path/to/flow.json
+    python render_flows.py path/to/flow.json -o custom-name.svg
+    python render_flows.py Homey_Backups/flows/2026-04-22_13-52/*.json -d output/
+    python render_flows.py flow.json --png
 
 Card types handled: trigger, condition, action, note, all, any, start, delay
 Connection types: outputSuccess (blue), outputTrue (green), outputFalse (amber), outputError (amber/orange)

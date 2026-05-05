@@ -167,7 +167,7 @@ def _write_output(svg_str: str, out_path: Path, to_png: bool) -> Path:
         if _cairosvg is None:
             raise SystemExit(
                 "ERROR: --png requires cairosvg.\n"
-                "  Recommended: use uv run homey_flow_svg.py --png  (auto-installs cairosvg)\n"
+                "  Recommended: use uv run render_flows.py --png  (auto-installs cairosvg)\n"
                 "  Manual:      pip install cairosvg\n"
                 "  Also needs the libcairo2 native library:\n"
                 "    Linux:   sudo apt install libcairo2-dev\n"
