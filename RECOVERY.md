@@ -6,7 +6,7 @@ This guide walks you through restoring your Homey Pro configuration from a Homey
 
 ## Before You Begin: What Cannot Be Automatically Restored
 
-Be honest with yourself about what this toolchain covers. The following **cannot** be restored from these backups and must be handled manually or accepted as lost:
+Be honest with yourself about what this toolchain covers. The following shows what **can** and **cannot** be restored from these backups and which must be handled manually or accepted as lost:
 
 | Item | Status | Notes |
 |---|---|---|
@@ -18,7 +18,7 @@ Be honest with yourself about what this toolchain covers. The following **cannot
 | Light scenes (moods) | ✅ Backed up | Saved to `moods/`; can be re-created via API |
 | Home geolocation config | ✅ Backed up | Saved to `geolocation.json`; can be re-applied via API |
 | System info | ✅ Backed up | Hostname, firmware version, language, units etc. saved to `meta.json` — reference only |
-| Devices | ⚠️ Partial | Settings are backed up to `apps/` for reference, but devices must be re-paired and will get new UUIDs |
+| Devices | ⚠️ Partial | Settings are backed up to `devices/` for reference, but devices must be re-paired and will get new UUIDs |
 | Third-party app settings | ⚠️ Partial | App list + per-app settings JSON backed up to `apps/`; apps must still be manually installed and reconfigured (re-pair, API keys, etc.) |
 | Dashboards / home screen | ⚠️ Partial | Dashboard JSON backed up to `dashboards/`; no Homey API exists to POST dashboards back — must be rebuilt manually (backup is a reference only) |
 | Homey Insights history | ❌ Not backed up | Sensor data, energy history — permanently lost |
@@ -34,10 +34,11 @@ Be honest with yourself about what this toolchain covers. The following **cannot
 
 If you haven't performed the factory reset yet, verify these first:
 
-- [ ] Run `uv run backup.py` and confirm the summary shows the expected item counts
+- [ ] Run `uv run backup.py --render-png` and confirm the summary shows the expected item counts
 - [ ] Check that a `Backups/` directory was created with today's timestamp and contains subdirectories:
   `flows/`, `zones/`, `variables/`, `devices/`, `apps/`, `moods/`, `dashboards/`
   and files: `geolocation.json`, `meta.json`
+- [ ] Check that the `Backups/TIMESTAMP/flows` directory contains the expected flows, and that the `.png` images of those rendered flows match what's expected
 - [ ] Note your Homey's current IP address (check your router's DHCP table)
 - [ ] Copy your Personal Access Token somewhere safe, or note that you'll need to generate a new one after reset
 - [ ] Note which third-party apps you have installed (BLL, etc.)

@@ -69,6 +69,15 @@ uv run backup.py # run within the project venv
 
 ---
 
+## Environment Variables
+
+| Variable | Required for | Example |
+|---|---|---|
+| `HOMEY_API_URL` | `backup.py` | `http://192.168.1.100` |
+| `HOMEY_API_TOKEN` | `backup.py` | `atk_abc123...` |
+
+---
+
 ## Persistent Setup (optional)
 
 To avoid typing env vars each run, create a `.env` file in this directory:
@@ -86,15 +95,6 @@ uv run backup.py
 ```
 
 Or add the exports to your shell profile (`~/.zshrc`, `~/.bashrc`) for permanent access.
-
----
-
-## Environment Variables
-
-| Variable | Required for | Example |
-|---|---|---|
-| `HOMEY_API_URL` | `backup.py` | `http://192.168.1.100` |
-| `HOMEY_API_TOKEN` | `backup.py` | `atk_abc123...` |
 
 ---
 
@@ -153,14 +153,14 @@ Each backup run creates a new timestamped directory (`YYYY-MM-DD_HH-MM`). If the
 #### Summary output
 
 ```
-╔══ BACKUP SUMMARY ════════════════════════════════╗
+╔══ BACKUP SUMMARY ════════════════════════════════════╗
   Category   │  Saved │ Skipped │ Errors │ Output path
   ───────────┼────────┼─────────┼────────┼─────────────────────────
   Devices    │     42 │       0 │      0 │ .../Backups/2026-04-26_14-05/devices
   Flows      │     38 │       0 │      0 │ .../Backups/2026-04-26_14-05/flows
   Zones      │     16 │       0 │      0 │ .../Backups/2026-04-26_14-05/zones
   Variables  │     12 │       0 │      0 │ .../Backups/2026-04-26_14-05/variables
-╚══════════════════════════════════════════════════╝
+╚══════════════════════════════════════════════════════╝
 ```
 
 #### Scheduling automated backups (optional)
@@ -210,11 +210,11 @@ Run `uv run restore.py --version` to print the version and exit.
 
 After a factory reset, restore in this exact order to avoid broken references:
 
-1. **Flow Folders** — must exist before flows; build an old→new UUID mapping as you create each one
-2. **Zones** — must exist before flows; flow cards embed zone UUIDs directly
-3. **Variables** — should exist before flows that test or set them
-4. **Flows** — import last; update device/zone/variable/folder UUID references as you go
-5. **Devices** — re-pair physically at any time, then open each broken flow and update device cards
+1. **Zones** — must exist before flows; flow cards embed zone UUIDs directly
+2. **Variables** — should exist before flows that test or set them
+3. **Devices** — re-pair physically at any time, then open each broken flow and update device cards
+4. **Flow Folders** — must exist before flows; build an old→new UUID mapping as you create each one
+5. **Flows** — import last; update device/zone/variable/folder UUID references as you go
 
 > For the full step-by-step procedure including curl examples and UUID reconciliation tables, see **[RECOVERY.md](./RECOVERY.md)**.
 
@@ -266,7 +266,7 @@ python -m render_flows Backups/2026-04-26_14-05/flows/my-flow-uuid.json -o diagr
 # Batch render all flows from a backup run
 python -m render_flows Backups/2026-04-26_14-05/flows/*.json -d flow-rendering/
 
-# Also works as a script:
+# Also works as a uv script:
 uv run render_flows.py Backups/2026-04-26_14-05/flows/my-flow-uuid.json
 ```
 

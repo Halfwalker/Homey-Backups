@@ -92,8 +92,6 @@ All methods use Bearer token auth via `requests.Session`. Base path: `{base_url}
 | `get_advanced_flows()` | `GET /api/manager/flow/advancedflow` | `list[dict]` (compact, no cards) |
 | `get_advanced_flow(flow_id)` | `GET /api/manager/flow/advancedflow/{id}` | `dict | None` (full card DAG) |
 | `get_flow_folders()` | `GET /api/manager/flow/flowfolder` | `list[dict]` (flat, id injected) |
-
-> **⚠️ API response accuracy note:** TECHDOCS describes `get_advanced_flows()` (the list endpoint) as returning "compact, no cards." However, actual backup files on disk contain full `cards` dicts, and `backup_flows()` only calls `get_advanced_flows()` — never `get_advanced_flow()`. This suggests the list endpoint may return full card DAGs on current Homey Pro firmware, making the per-flow fetch redundant. This behaviour should be verified against the target firmware version. `get_advanced_flow()` is retained as a fallback for firmware versions that do return compact data from the list endpoint.
 | `get_zones()` | `GET /api/manager/zones/zone` | `list[dict]` (flat) |
 | `get_logic_variables()` | `GET /api/manager/logic/variable` | `list[dict]` (Homey Logic vars) |
 | `get_bll_variables()` | `GET /api/app/net.i-dev.betterlogic/ALL` | `list[dict]` (BLL vars, empty if app absent) |
@@ -103,6 +101,8 @@ All methods use Bearer token auth via `requests.Session`. Base path: `{base_url}
 | `get_geolocation()` | `GET /api/manager/geolocation/state` + `/option/location` + `/option/address` | `dict` with keys `state`, `location`, `address` — any endpoint that fails returns `{}` for that key |
 | `get_dashboards()` | `GET /api/manager/dashboards/dashboard` | `list[dict]` (flat) |
 | `get_moods()` | `GET /api/manager/moods/mood` | `list[dict]` (light scenes, flat) |
+
+> **⚠️ API response accuracy note:** TECHDOCS describes `get_advanced_flows()` (the list endpoint) as returning "compact, no cards." However, actual backup files on disk contain full `cards` dicts, and `backup_flows()` only calls `get_advanced_flows()` — never `get_advanced_flow()`. This suggests the list endpoint may return full card DAGs on current Homey Pro firmware, making the per-flow fetch redundant. This behaviour should be verified against the target firmware version. `get_advanced_flow()` is retained as a fallback for firmware versions that do return compact data from the list endpoint.
 
 Internal helper:
 - `_get(path)` — appends `/api{path}` to base URL, exits process on connection/timeout/HTTP errors
