@@ -135,16 +135,17 @@ class TestBackupSystemInfo:
         assert result.saved == 0
         assert "no data" in result.note
 
-    def test_existing_file_without_force_exits(self, tmp_path):
-        """If meta.json already exists and force=False, sys.exit(1) is called."""
+    def test_existing_file_without_force_returns_error(self, tmp_path):
+        """When output file already exists and force=False, returns an error BackupResult."""
         import backup
 
         api = _make_api(system_info={"v": "1"})
         output_path = tmp_path / "meta.json"
         output_path.write_text("{}")  # pre-existing file
 
-        with pytest.raises(SystemExit):
-            backup.backup_system_info(api, output_path=output_path, force=False)
+        result = backup.backup_system_info(api, output_path=output_path, force=False)
+        assert result.errors == 1
+        assert "already exists" in result.note
 
     def test_force_overwrites_existing_file(self, tmp_path):
         """With force=True an existing meta.json is silently overwritten."""
@@ -311,16 +312,17 @@ class TestBackupGeolocation:
         assert result.saved == 0
         assert "no data" in result.note
 
-    def test_existing_file_without_force_exits(self, tmp_path):
-        """If geolocation.json already exists and force=False, sys.exit(1) is called."""
+    def test_existing_file_without_force_returns_error(self, tmp_path):
+        """When output file already exists and force=False, returns an error BackupResult."""
         import backup
 
         api = _make_api(geolocation=_GEO_DATA)
         output_path = tmp_path / "geolocation.json"
         output_path.write_text("{}")  # pre-existing file
 
-        with pytest.raises(SystemExit):
-            backup.backup_geolocation(api, output_path=output_path, force=False)
+        result = backup.backup_geolocation(api, output_path=output_path, force=False)
+        assert result.errors == 1
+        assert "already exists" in result.note
 
     def test_force_overwrites_existing_file(self, tmp_path):
         """With force=True an existing geolocation.json is silently overwritten."""
