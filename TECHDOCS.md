@@ -58,7 +58,7 @@
 
 ### Purpose
 
-Connects to a Homey Pro via its local REST API, fetches all devices, flows (normal + advanced), zones, and logic variables (Homey Logic + BLL), and persists each item as an individual JSON file in timestamped directories.
+Connects to a Homey Pro via its local REST API, fetches all devices, flows (normal + advanced), flow folders, zones, logic variables (Homey Logic + BLL), apps (with per-app settings), dashboards, light scenes (moods), system info, and geolocation, and persists each item as an individual JSON file or directory in timestamped backup snapshots.
 
 ### uv inline script header
 
@@ -105,7 +105,7 @@ All methods use Bearer token auth via `requests.Session`. Base path: `{base_url}
 > **⚠️ API response accuracy note:** TECHDOCS describes `get_advanced_flows()` (the list endpoint) as returning "compact, no cards." However, actual backup files on disk contain full `cards` dicts, and `backup_flows()` only calls `get_advanced_flows()` — never `get_advanced_flow()`. This suggests the list endpoint may return full card DAGs on current Homey Pro firmware, making the per-flow fetch redundant. This behaviour should be verified against the target firmware version. `get_advanced_flow()` is retained as a fallback for firmware versions that do return compact data from the list endpoint.
 
 Internal helper:
-- `_get(path)` — appends `/api{path}` to base URL, exits process on connection/timeout/HTTP errors
+- `_get(path)` — appends `/api{path}` to base URL, raises `HomeyAPIError` on connection/timeout/HTTP errors
 - `_dict_to_list(data)` — converts Homey's `{id: {...}}` response format to a flat list with `id` injected into each dict
 
 ### Backup categories
@@ -145,8 +145,8 @@ All `backup_*` functions for list-based categories (`backup_devices`, `backup_fl
 ### Error handling & exit codes
 
 - Missing env vars (`HOMEY_API_URL`, `HOMEY_API_TOKEN`) → `sys.exit(1)` with message
-- Connection error / timeout / non-200 response → `sys.exit(1)` immediately
-- Backup directory already exists → `sys.exit(1)` (prevents accidental overwrite); pass `--force` to override
+- Connection error / timeout / non-200 response → `HomeyAPIError` raised; caught by each `backup_*` function and recorded in `BackupResult.error_details`; backup continues to next category
+- Backup directory already exists → error recorded in `BackupResult` and returned (no `sys.exit`); pass `--force` to overwrite
 - Individual file write failure → logged to `BackupResult.error_details`, script continues
 - Items without an ID → skipped with warning
 
@@ -590,7 +590,7 @@ except ImportError:
 - Device/zone/variable lookup requires a matching timestamp directory — if backup timestamps differ, auto-discovery fails
 - BLL variables referenced by name (not UUID) may not resolve if the BLL app response format varies
 - `outputError` port is always positioned at `y + 52` regardless of card height — may clip on very short cards
-- Disabled flows: only trigger cards get a "disabled overlay" (semi-transparent rectangle), other cards remain fully visible
+- Disabled flows: ALL cards get a semi-transparent overlay (opacity 0.5 grey rectangle), not just trigger cards
 - The `_word_wrap` function replaces newlines with spaces before wrapping
 
 ---

@@ -41,7 +41,7 @@ If you are restoring a Homey Pro after a factory reset, see **[RECOVERY.md](RECO
 
 ## Quick Start
 
-`backup.py` and `restore.py` are self-contained [uv inline scripts](https://docs.astral.sh/uv/guides/scripts/#declaring-script-dependencies) — no venv setup needed. `render_flows.py` is stdlib-only (no uv header required):
+`backup.py` and `restore.py` are self-contained [uv inline scripts](https://docs.astral.sh/uv/guides/scripts/#declaring-script-dependencies) — no venv setup needed. `render_flows.py` uses a uv inline script header that auto-installs `cairosvg` when using `--png`; for SVG-only output no extra dependencies are needed:
 
 ```bash
 # Back up everything
@@ -65,7 +65,7 @@ uv sync          # creates .venv and installs all dependencies
 uv run backup.py # run within the project venv
 ```
 
-> Note: only `backup.py` and `restore.py` need dependencies. `render_flows.py` (`python -m render_flows` or `uv run render_flows.py`) is stdlib-only and can be run directly with `python` without uv.
+> Note: only `backup.py` and `restore.py` require dependencies via uv. `render_flows.py` (`uv run render_flows.py` or `python -m render_flows`) has a uv header that auto-installs `cairosvg` for `--png` mode; for SVG-only output it can be run directly with `python` without uv.
 
 ---
 
@@ -148,7 +148,7 @@ Each backup run creates a new timestamped directory (`YYYY-MM-DD_HH-MM`). If the
 | `--render-png` | After backup, render all flow diagrams as PNG images — requires `cairosvg` (invokes `render_flows.py --png`) |
 | `--version` | Print version and exit |
 
-> **Note:** If `HOMEY_API_TOKEN` doesn't look like a JWT, backup.py prints a non-fatal warning and continues. The backup will still run — the warning is informational only.
+> **Note:** If `HOMEY_API_TOKEN` doesn't look like a Homey PAT (`atk_…`) or a JWT, backup.py prints a non-fatal warning and continues. The backup will still run — the warning is informational only.
 
 #### Summary output
 
@@ -156,10 +156,16 @@ Each backup run creates a new timestamped directory (`YYYY-MM-DD_HH-MM`). If the
 ╔══ BACKUP SUMMARY ════════════════════════════════════╗
   Category   │  Saved │ Skipped │ Errors │ Output path
   ───────────┼────────┼─────────┼────────┼─────────────────────────
-  Devices    │     42 │       0 │      0 │ .../Backups/2026-04-26_14-05/devices
-  Flows      │     38 │       0 │      0 │ .../Backups/2026-04-26_14-05/flows
-  Zones      │     16 │       0 │      0 │ .../Backups/2026-04-26_14-05/zones
-  Variables  │     12 │       0 │      0 │ .../Backups/2026-04-26_14-05/variables
+  Devices      │     42 │       0 │      0 │ .../Backups/2026-04-26_14-05/devices
+  Flows        │     38 │       0 │      0 │ .../Backups/2026-04-26_14-05/flows
+  Flow Folders │      5 │       0 │      0 │ .../Backups/2026-04-26_14-05/flow_folders
+  Zones        │     16 │       0 │      0 │ .../Backups/2026-04-26_14-05/zones
+  Variables    │     12 │       0 │      0 │ .../Backups/2026-04-26_14-05/variables
+  Apps         │      8 │       0 │      0 │ .../Backups/2026-04-26_14-05/apps
+  System       │      1 │       0 │      0 │ .../Backups/2026-04-26_14-05/meta.json
+  Geolocation  │      1 │       0 │      0 │ .../Backups/2026-04-26_14-05/geolocation.json
+  Dashboards   │      3 │       0 │      0 │ .../Backups/2026-04-26_14-05/dashboards
+  Moods        │      6 │       0 │      0 │ .../Backups/2026-04-26_14-05/moods
 ╚══════════════════════════════════════════════════════╝
 ```
 
@@ -354,7 +360,7 @@ The repo ships with a CI workflow at `.github/workflows/ci.yml`. It runs on ever
 2. `ruff check .` — lint (unused imports, style errors, etc.)
 3. `pytest --tb=short` — full test suite
 
-Matrix: **Python 3.11** and **Python 3.12** (both must pass).
+Matrix: **Python 3.11**, **Python 3.12**, and **Python 3.13** (all must pass).
 
 ### Running CI locally with act
 
