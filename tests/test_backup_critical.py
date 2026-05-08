@@ -4,8 +4,6 @@ argparse flags, and post-backup render hooks.
 
 Run:  pytest tests/test_backup_critical.py -v
 """
-import pathlib
-import sys
 from unittest.mock import MagicMock, patch
 import pytest
 

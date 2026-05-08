@@ -7,7 +7,6 @@ Run:  pytest tests/test_backup_new_categories.py -v
 """
 import json
 from unittest.mock import MagicMock
-import pytest
 
 
 # ── helpers ─────────────────────────────────────────────────────────────
