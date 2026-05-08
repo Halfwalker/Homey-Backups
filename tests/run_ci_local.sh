@@ -21,7 +21,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
 WORKFLOW=".github/workflows/ci.yml"
-MATRIX_VERSIONS=("3.11" "3.12")
+MATRIX_VERSIONS=("3.11" "3.12" "3.13")
 
 # Parse optional flags
 DRY_RUN=""

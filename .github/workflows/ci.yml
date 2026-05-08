@@ -5,17 +5,21 @@ on:
     paths:
       - "backup.py"
       - "restore.py"
-      - "homey_flow_svg.py"
+      - "render_flows.py"
+      - "render_flows/**"
       - "tests/**"
       - "pyproject.toml"
+      - "uv.lock"
       - ".github/workflows/ci.yml"
   pull_request:
     paths:
       - "backup.py"
       - "restore.py"
-      - "homey_flow_svg.py"
+      - "render_flows.py"
+      - "render_flows/**"
       - "tests/**"
       - "pyproject.toml"
+      - "uv.lock"
       - ".github/workflows/ci.yml"
 
 jobs:
@@ -24,27 +28,35 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13"]
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: uv sync --group dev
 
       - name: Lint — ruff check
-        run: ruff check .
+        run: uv run ruff check .
 
-      - name: Test — pytest
+      - name: Test — pytest with coverage
         shell: bash
         run: |
           set -o pipefail
-          pytest --tb=short 2>&1 | tee /tmp/pytest-out.txt
+          uv run pytest --cov --cov-report=html:tests/htmlcov --cov-report=term 2>&1 | tee /tmp/pytest-out.txt
+
+      - name: Upload coverage report
+        if: ${{ !env.ACT }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html-py${{ matrix.python-version }}
+          path: tests/htmlcov/
+          retention-days: 14
 
       - name: Summary
         if: always()
@@ -54,11 +66,11 @@ jobs:
           echo "══════════════════════════════════════"
           echo "  CI RESULTS  (Python ${{ matrix.python-version }})"
           echo "══════════════════════════════════════"
-          tail -4 /tmp/pytest-out.txt 2>/dev/null || echo "  (no pytest output captured)"
+          tail -6 /tmp/pytest-out.txt 2>/dev/null || echo "  (no pytest output captured)"
           echo "══════════════════════════════════════"
           if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
             echo "## CI Results — Python ${{ matrix.python-version }}" >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
-            tail -4 /tmp/pytest-out.txt >> "$GITHUB_STEP_SUMMARY"
+            tail -6 /tmp/pytest-out.txt >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
           fi
