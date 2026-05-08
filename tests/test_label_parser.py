@@ -13,6 +13,7 @@ from render_flows._label_parser import (
     _resolve_placeholders,
     _resolve_uri_refs,
     _resolve_trigger_refs,
+    _parse_label,
 )
 
 
@@ -155,3 +156,175 @@ class TestResolveTriggerRefs:
         text = "[[trigger::card1::temp]]"
         result = _resolve_trigger_refs(text, None, None)
         assert result == text
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# _parse_label
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _pl(card, **kwargs):
+    """Convenience wrapper — positional args match _parse_label signature."""
+    return _parse_label(card, **kwargs)
+
+
+class TestParseLabel:
+    """Branch-coverage tests for _parse_label."""
+
+    # ── Cron variants ────────────────────────────────────────────────────────
+
+    def test_cron_sunrise(self):
+        card = {"type": "trigger", "id": "homey:manager:cron:sunrise", "args": {"before": 5}}
+        assert _pl(card) == "Sun rises in 5 minutes"
+
+    @pytest.mark.parametrize("suffix,expected", [
+        ("after_sunrise", "After sunrise"),
+        ("after_sunset", "After sunset"),
+    ])
+    def test_cron_after_variants(self, suffix, expected):
+        card = {"type": "trigger", "id": f"homey:manager:cron:{suffix}", "args": {}}
+        assert _pl(card) == expected
+
+    def test_cron_before_sunrise(self):
+        card = {"type": "trigger", "id": "homey:manager:cron:before_sunrise", "args": {"before": 10}}
+        assert _pl(card) == "10 min before sunrise"
+
+    def test_cron_before_sunset(self):
+        card = {"type": "trigger", "id": "homey:manager:cron:before_sunset", "args": {"before": 15}}
+        assert _pl(card) == "15 min before sunset"
+
+    # ── Zone trigger ─────────────────────────────────────────────────────────
+
+    def test_zone_trigger_with_zone_lookup(self):
+        zone_uuid = "zone-uuid-1111"
+        card = {
+            "type": "trigger",
+            "id": f"homey:zone:{zone_uuid}:alarm_motion_true",
+            "args": {},
+        }
+        result = _pl(card, zone_lookup={zone_uuid: "Living Room"})
+        assert "Living Room" in result
+
+    def test_zone_trigger_zone_not_in_lookup(self):
+        zone_uuid = "zone-uuid-2222"
+        card = {
+            "type": "trigger",
+            "id": f"homey:zone:{zone_uuid}:alarm_motion_true",
+            "args": {},
+        }
+        # Falls back to first 8 chars of UUID
+        result = _pl(card, zone_lookup={})
+        assert zone_uuid[:8] in result
+
+    # ── BLL branches ─────────────────────────────────────────────────────────
+
+    def test_bll_variable_contains(self):
+        card = {
+            "type": "condition",
+            "id": "net.i-dev.betterlogic:variable_contains",
+            "args": {"variable": {"name": "MyVar"}, "value": "hello"},
+        }
+        result = _pl(card)
+        assert result == "'MyVar' contains 'hello'"
+
+    def test_bll_execute_expression(self):
+        card = {
+            "type": "action",
+            "id": "net.i-dev.betterlogic:execute_bl_expression",
+            "args": {"variable": {"name": "Counter"}, "expression": "Counter + 1"},
+        }
+        result = _pl(card)
+        assert result == "Set Counter to Counter + 1"
+
+    # ── Logic variable_set ────────────────────────────────────────────────────
+
+    def test_logic_variable_set_basic(self):
+        card = {
+            "type": "action",
+            "id": "homey:manager:logic:variable_set",
+            "args": {"variable": {"name": "Score"}, "value": "42"},
+        }
+        assert _pl(card) == "Score = 42"
+
+    def test_logic_variable_set_strips_math_wrapper(self):
+        card = {
+            "type": "action",
+            "id": "homey:manager:logic:variable_set",
+            "args": {"variable": {"name": "Score"}, "value": "{{Score + 1}}"},
+        }
+        assert _pl(card) == "Score = Score + 1"
+
+    # ── Notification / timeline ───────────────────────────────────────────────
+
+    def test_notification_action(self):
+        card = {
+            "type": "action",
+            "id": "homey:manager:notifications:create_notification",
+            "args": {"text": "Hello world"},
+        }
+        assert _pl(card) == "Hello world"
+
+    # ── Mobile push ───────────────────────────────────────────────────────────
+
+    def test_mobile_push_with_user(self):
+        card = {
+            "type": "action",
+            "id": "homey:manager:mobile:send_notification_push",
+            "args": {"user": {"name": "Alice"}, "text": "Dinner time"},
+        }
+        result = _pl(card)
+        assert result == "→ Alice: Dinner time"
+
+    def test_mobile_push_image(self):
+        card = {
+            "type": "action",
+            "id": "homey:manager:mobile:push_image",
+            "args": {"user": {"name": "Bob"}},
+            "droptoken": "homey:device:dev-uuid-9999|snapshot",
+        }
+        result = _pl(card, device_lookup={"dev-uuid-9999": "Doorbell"})
+        assert "Doorbell" in result
+
+    # ── Rich format ───────────────────────────────────────────────────────────
+
+    def test_rich_format_title_formatted(self):
+        card = {
+            "type": "action",
+            "card": {
+                "titleFormatted": "Turn [[device]] on",
+                "args": {"device": "Kitchen Light"},
+            },
+        }
+        assert _pl(card) == "Turn Kitchen Light on"
+
+    def test_rich_format_owner_uri_device_lookup(self):
+        dev_uuid = "dev-uuid-abcd"
+        card = {
+            "type": "action",
+            "card": {
+                "titleFormatted": "Set dim level",
+                "ownerUri": f"homey:device:{dev_uuid}",
+                "args": {},
+            },
+        }
+        result = _pl(card, device_lookup={dev_uuid: "Bedroom Light"})
+        assert "Bedroom Light" in result
+
+    # ── Fallback / generic args ───────────────────────────────────────────────
+
+    def test_fallback_with_args_dict_with_name(self):
+        card = {
+            "type": "action",
+            "id": "some:unknown:action",
+            "args": {"zone": {"name": "Garden"}},
+        }
+        result = _pl(card)
+        assert "Garden" in result
+
+    def test_fallback_duration_unit_combined(self):
+        card = {
+            "type": "action",
+            "id": "some:unknown:fade",
+            "args": {"duration": "30", "unit": "seconds"},
+        }
+        result = _pl(card)
+        assert "30 seconds" in result
