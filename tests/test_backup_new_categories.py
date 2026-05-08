@@ -72,17 +72,11 @@ class TestBackupApps:
         assert result.saved == 0
         assert result.note == "API call failed"
 
-    def test_settings_fetch_failure_does_not_abort(self, tmp_path):
-        """If get_app_settings raises HomeyAPIError, the app is still saved with empty settings."""
+    def test_app_saved_with_empty_settings(self, tmp_path):
+        """When get_app_settings returns {}, the app file is saved with settings: {}."""
         import backup
 
         api = _make_api(apps=[{"id": "com.example.app", "name": "Example App"}])
-        api.get_app_settings.side_effect = backup.HomeyAPIError("not found")
-
-        # get_app_settings is called directly on the api mock; since backup_apps catches
-        # HomeyAPIError in get_app_settings (within HomeyAPI), we simulate the graceful
-        # path by having get_app_settings return {} (the real implementation swallows the error).
-        api.get_app_settings.side_effect = None
         api.get_app_settings.return_value = {}
 
         result = backup.backup_apps(api, output_dir=tmp_path / "apps")
