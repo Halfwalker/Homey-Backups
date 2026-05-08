@@ -290,7 +290,9 @@ def _backup_items(
         if not force:
             print(f"[ERROR] Backup directory already exists: {output_dir}", file=sys.stderr)
             print("  Use --force to overwrite.", file=sys.stderr)
-            sys.exit(1)
+            result.errors += 1
+            result.note = "already exists — use --force to overwrite"
+            return result
         else:
             print(f"[WARN] Overwriting existing backup directory: {output_dir}", file=sys.stderr)
     output_dir.mkdir(parents=True, exist_ok=force)
@@ -529,7 +531,9 @@ def backup_system_info(api: HomeyAPI, output_path: pathlib.Path, force: bool = F
     if output_path.exists() and not force:
         print(f"[ERROR] Backup file already exists: {output_path}", file=sys.stderr)
         print("  Use --force to overwrite.", file=sys.stderr)
-        sys.exit(1)
+        result.errors += 1
+        result.note = "already exists — use --force to overwrite"
+        return result
 
     try:
         info = api.get_system_info()
@@ -573,7 +577,9 @@ def backup_geolocation(api: HomeyAPI, output_path: pathlib.Path, force: bool = F
     if output_path.exists() and not force:
         print(f"[ERROR] Backup file already exists: {output_path}", file=sys.stderr)
         print("  Use --force to overwrite.", file=sys.stderr)
-        sys.exit(1)
+        result.errors += 1
+        result.note = "already exists — use --force to overwrite"
+        return result
 
     try:
         geo = api.get_geolocation()
@@ -793,12 +799,12 @@ def main() -> None:
         print("        Generate a Personal Access Token in the Homey mobile app.", file=sys.stderr)
         sys.exit(1)
 
-    # Validate token looks like a JWT (3 dot-separated base64 segments)
+    # Accept both Homey PATs (atk_ prefix) and JWT-style local tokens (3 dot-separated segments)
     _token_parts = HOMEY_API_TOKEN.split(".")
-    if len(_token_parts) != 3:
+    if not HOMEY_API_TOKEN.startswith("atk_") and len(_token_parts) != 3:
         print(
-            "[WARN] HOMEY_API_TOKEN does not look like a valid JWT "
-            "(expected 3 dot-separated segments). Attempting connection anyway.",
+            "[WARN] HOMEY_API_TOKEN does not look like a valid Homey token "
+            "(expected atk_… PAT or a 3-segment JWT). Attempting connection anyway.",
             file=sys.stderr,
         )
 

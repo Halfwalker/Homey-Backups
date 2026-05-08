@@ -229,13 +229,15 @@ class TestRenderFlows:
 class TestForceFlag:
     """Tests for the force guard in _backup_items() via backup_devices()."""
 
-    def test_force_false_exits_when_dir_exists(self, tmp_path):
+    def test_force_false_returns_error_when_dir_exists(self, tmp_path):
+        """When output dir already exists and force=False, returns an error BackupResult (no sys.exit)."""
         import backup
         existing_dir = tmp_path / "devices"
         existing_dir.mkdir()
         api = _make_api(devices=[{"id": "dev-1", "name": "Light"}])
-        with pytest.raises(SystemExit):
-            backup.backup_devices(api, output_dir=existing_dir, force=False)
+        result = backup.backup_devices(api, output_dir=existing_dir, force=False)
+        assert result.errors == 1
+        assert "already exists" in result.note
 
     def test_force_true_overwrites_existing_dir(self, tmp_path):
         import backup
