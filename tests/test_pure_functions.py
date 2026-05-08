@@ -3,11 +3,6 @@ tests/test_pure_functions.py
 Comprehensive unit tests for pure functions in the Homey Backups toolchain.
 """
 
-import sys
-import pathlib
-
-sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
-
 import json as _json
 import backup
 from render_flows._lookups import _build_folder_lookup, _stem_uuid

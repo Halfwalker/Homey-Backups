@@ -5,6 +5,7 @@ Run:  pytest tests/test_svg_critical.py -v
 """
 import json
 import pathlib
+import sys
 
 
 SIMPLE_ADVANCED_FLOW = {
@@ -74,7 +75,7 @@ class TestSVGBatchCritical:
             "Good flow was not rendered — bad flow should not abort the batch"
         )
 
-    def test_render_flow_exception_caught_in_cli_batch(self, tmp_path):
+    def test_render_flow_exception_caught_in_cli_batch(self, tmp_path, monkeypatch):
         """The CLI main() batch loop must catch render_flow() exceptions and continue."""
         import render_flows as svg
 
@@ -93,14 +94,12 @@ class TestSVGBatchCritical:
         out_dir.mkdir()
 
         # Run main() with both flows; should not raise
-        import sys
-        argv_backup = sys.argv
-        sys.argv = [
+        monkeypatch.setattr(sys, "argv", [
             "render_flows.py",
             str(good_path),
             str(bad_path),
             "-d", str(out_dir),
-        ]
+        ])
         try:
             # Should complete without raising SystemExit or unhandled Exception
             svg.main()
@@ -109,8 +108,6 @@ class TestSVGBatchCritical:
             assert exc.code == 0 or exc.code is None, (
                 f"main() exited with code {exc.code} — should continue past bad flows"
             )
-        finally:
-            sys.argv = argv_backup
 
         # Good flow must have rendered
         assert (out_dir / "good.svg").exists(), (
