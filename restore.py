@@ -63,6 +63,9 @@ CATEGORY_SUBDIRS: dict[str, str] = {
     "flow_folder":  "flow_folders",
     "zone":         "zones",
     "variable":     "variables",
+    "app":          "apps",
+    "dashboard":    "dashboards",
+    "mood":         "moods",
 }
 
 def list_backup_dates(category: str) -> list[pathlib.Path]:
@@ -169,6 +172,51 @@ IMPORT_INSTRUCTIONS: dict[str, str] = {
             Variables can be set via the BLL app settings page in Homey,
             or via: PUT /api/app/net.i-dev.betterlogic/variable/<name>
         ──────────────────────────────────────────────────────────────────────"""),
+
+    "app": textwrap.dedent("""\
+        ── How to re-import an APP into Homey ────────────────────────────────
+          Apps are installed from the Homey App Store; the backup contains
+          per-app settings that can be restored after re-installation.
+
+          1. Re-install the app from https://homey.app/store/ or the Homey
+             mobile app.
+          2. Navigate to the app in Settings → Apps → <App Name> → Settings.
+          3. Manually re-enter the settings from the backup JSON, or use:
+               PUT /api/app/<appId>/setting/<key>
+             for each key/value pair in the "settings" object.
+
+          Note: App data and state (not just settings) is not backed up.
+        ──────────────────────────────────────────────────────────────────────"""),
+
+    "dashboard": textwrap.dedent("""\
+        ── How to re-import a DASHBOARD into Homey ───────────────────────────
+          ⚠️  Dashboards cannot be restored via the Homey API. The backup is
+          for reference only.
+
+          Homey does not expose a public REST endpoint to create or update
+          dashboards programmatically. To restore a dashboard:
+
+          1. Open the Homey mobile app → Dashboards.
+          2. Manually recreate the layout using the backed-up JSON as reference.
+          3. The backup JSON documents which devices and capabilities each
+             widget was using, so you can recreate the layout accurately.
+        ──────────────────────────────────────────────────────────────────────"""),
+
+    "mood": textwrap.dedent("""\
+        ── How to re-import a MOOD (Light Scene) into Homey ──────────────────
+          Light scenes (moods) can be restored via the Homey local REST API:
+
+          1. To create a new mood:
+               POST /api/manager/moods/mood
+             with the mood JSON as the request body.
+          2. To update an existing mood (same ID):
+               PUT /api/manager/moods/mood/<id>
+             with the mood JSON as the request body.
+
+          Note: Device IDs within the mood refer to physical devices that
+          must already exist on your Homey. Restore devices first, then
+          build an old-UUID → new-UUID mapping before importing moods.
+        ──────────────────────────────────────────────────────────────────────"""),
 }
 
 
@@ -258,7 +306,8 @@ def _choose_category() -> str:
     """Ask the user which backup category to browse.
 
 Returns:
-    One of: 'device', 'flow', 'flow_folder', 'zone', or 'variable'.
+    One of: 'device', 'flow', 'flow_folder', 'zone', 'variable', 'app',
+    'dashboard', or 'mood'.
 """
     answers = inquirer.prompt(
         [
@@ -271,6 +320,9 @@ Returns:
                     ("📁  Flow Folder",  "flow_folder"),
                     ("🗂️   Zone",         "zone"),
                     ("🔢  Variable",     "variable"),
+                    ("📱  App",          "app"),
+                    ("📊  Dashboard",    "dashboard"),
+                    ("💡  Mood",         "mood"),
                 ],
             )
         ],
