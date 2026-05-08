@@ -222,3 +222,84 @@ class TestFolderPrefixInSVG:
         svg_text = output_path.read_text(encoding="utf-8")
         assert "Morning" not in svg_text
         assert "My Flow" in svg_text
+
+
+# ── TestCLIFlags ─────────────────────────────────────────────────────────
+
+import sys as _sys_cli  # noqa: E402
+import pytest as _pytest  # noqa: E402
+
+
+_MINIMAL_FLOW = {
+    "id": "cli-test-flow",
+    "name": "CLI Test Flow",
+    "enabled": True,
+    "flow_type": "advanced",
+    "cards": {
+        "card-1": {
+            "type": "trigger",
+            "id": "homey:device:abc:alarm_motion",
+            "x": 100,
+            "y": 100,
+            "outputSuccess": [],
+        }
+    },
+}
+
+
+class TestCLIFlags:
+    """Tests for CLI flag behaviour in render_flows._cli.main()."""
+
+    def test_output_flag_single_input(self, tmp_path, monkeypatch):
+        """Single input + -o flag writes SVG to the specified output path."""
+        import render_flows
+
+        flow_file = tmp_path / "flow.json"
+        flow_file.write_text(json.dumps(_MINIMAL_FLOW), encoding="utf-8")
+        out_svg = tmp_path / "custom.svg"
+
+        monkeypatch.setattr(
+            _sys_cli,
+            "argv",
+            ["render_flows", str(flow_file), "-o", str(out_svg)],
+        )
+        render_flows.main()
+
+        assert out_svg.exists(), "Output SVG was not created at the specified -o path"
+
+    def test_output_flag_multiple_inputs_exits(self, tmp_path, monkeypatch):
+        """-o with more than one input file must exit with code 1."""
+        import render_flows
+
+        flow_a = tmp_path / "flow_a.json"
+        flow_b = tmp_path / "flow_b.json"
+        flow_a.write_text(json.dumps(_MINIMAL_FLOW), encoding="utf-8")
+        flow_b.write_text(json.dumps(_MINIMAL_FLOW), encoding="utf-8")
+        out_svg = tmp_path / "out.svg"
+
+        monkeypatch.setattr(
+            _sys_cli,
+            "argv",
+            ["render_flows", str(flow_a), str(flow_b), "-o", str(out_svg)],
+        )
+        with _pytest.raises(SystemExit) as exc_info:
+            render_flows.main()
+
+        assert exc_info.value.code == 1
+
+    def test_missing_input_file_prints_error(self, tmp_path, monkeypatch, capsys):
+        """A non-existent input file prints an error to stderr and continues (no SystemExit)."""
+        import render_flows
+
+        nonexistent = tmp_path / "does_not_exist.json"
+
+        monkeypatch.setattr(
+            _sys_cli,
+            "argv",
+            ["render_flows", str(nonexistent)],
+        )
+        # main() should complete without raising — missing file is handled with 'continue'
+        render_flows.main()
+
+        err = capsys.readouterr().err
+        assert "Not found" in err

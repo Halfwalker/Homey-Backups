@@ -284,3 +284,77 @@ class TestForceFlag:
         api = _make_api(devices=[{"id": "dev-1", "name": "Light"}])
         result = backup.backup_devices(api, output_dir=output_dir, force=False)
         assert result.saved >= 0
+
+
+# ── TestHomeyAPIEdgeCases ────────────────────────────────────────────────
+
+
+class TestHomeyAPIEdgeCases:
+    """Edge-case handling in HomeyAPI methods not covered by existing tests."""
+
+    def _make_real_api(self):
+        import backup
+        return backup.HomeyAPI("http://192.168.1.1", "fake-token")
+
+    def test_get_bll_variables_list_response(self):
+        """When the BLL endpoint returns a list, it is returned as-is."""
+        api = self._make_real_api()
+        payload = [{"id": "x", "name": "y"}]
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = payload
+        with patch.object(api._http, "get", return_value=mock_resp):
+            result = api.get_bll_variables()
+        assert result == payload
+
+    def test_get_bll_variables_dict_response(self):
+        """When the BLL endpoint returns a dict, it is converted to a list via _dict_to_list."""
+        api = self._make_real_api()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"0": {"id": "x", "name": "y"}}
+        with patch.object(api._http, "get", return_value=mock_resp):
+            result = api.get_bll_variables()
+        assert isinstance(result, list)
+        assert len(result) == 1
+
+    def test_get_bll_variables_connection_error_returns_empty(self):
+        """A RequestException from the BLL endpoint returns [] without raising."""
+        import requests.exceptions
+        api = self._make_real_api()
+        with patch.object(api._http, "get", side_effect=requests.exceptions.ConnectionError("refused")):
+            result = api.get_bll_variables()
+        assert result == []
+
+    def test_get_app_settings_swallows_homey_api_error(self):
+        """HomeyAPIError from the app settings endpoint returns {} without raising."""
+        import backup
+        api = self._make_real_api()
+        with patch.object(api, "_get", side_effect=backup.HomeyAPIError("fail")):
+            result = api.get_app_settings("some-app-id")
+        assert result == {}
+
+    def test_get_system_info_fallback_on_error(self):
+        """If /manager/system/state raises HomeyAPIError, falls back to /manager/system."""
+        import backup
+        api = self._make_real_api()
+        fallback_data = {"version": "10.0"}
+        with patch.object(
+            api,
+            "_get",
+            side_effect=[backup.HomeyAPIError("state endpoint failed"), fallback_data],
+        ):
+            result = api.get_system_info()
+        assert result == fallback_data
+
+    def test_get_advanced_flow_returns_none_on_request_exception(self):
+        """A RequestException during get_advanced_flow returns None without raising."""
+        import requests.exceptions
+        api = self._make_real_api()
+        with patch.object(
+            api._http,
+            "get",
+            side_effect=requests.exceptions.RequestException("network error"),
+        ):
+            result = api.get_advanced_flow("flow-abc")
+        assert result is None
