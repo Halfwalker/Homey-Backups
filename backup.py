@@ -8,7 +8,9 @@
 # ///
 """
 Homey Backup Tool
-Backs up devices, flows, and zones from a Homey Pro instance via the local REST API.
+Backs up devices, flows, flow folders, zones, logic variables, apps, dashboards,
+light scenes (moods), system info, and geolocation from a Homey Pro instance via
+the local REST API.
 
 ---
 This script is intended to be run with [uv](https://github.com/astral-sh/uv):
