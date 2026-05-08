@@ -8,6 +8,41 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.3.1] — 2026-05-08
+
+No user-facing changes. Full test infrastructure overhaul.
+
+### Added
+- Coverage tooling: `pyproject.toml` `[tool.coverage]` source/omit config,
+  `tests/run_tests.sh` updated with `--cov` flags, `ci.yml` updated for coverage reporting
+- `tests/conftest.py` — centralized path setup and shared fixtures; eliminates
+  per-file `sys.path.insert` hacks across the test suite
+- `tests/test_label_parser.py` — 40 tests covering `_resolve_placeholders`,
+  `_resolve_uri_refs`, `_resolve_trigger_refs`, and 20+ `_parse_label` card-type branches
+- `tests/test_lookups.py` — 19 tests for 5 previously-untested lookup builder functions
+  (`_build_variable_lookup`, `_build_device_lookup`, `_build_cap_titles`,
+  `_build_zone_lookup`, `_build_trigger_name_map`)
+- `tests/test_restore_core.py` — 14 tests for `_load_items` and `_filter_items` in `restore.py`
+- `tests/test_backup_summary.py` — 9 tests for `_print_summary` and `BackupResult.total`
+
+### Changed
+- `tests/test_backup_critical.py`: +6 `HomeyAPI` error-path tests; subprocess tests
+  refactored to use `monkeypatch` on `backup.__file__` (no longer write stub files
+  into the real project tree); removed dead `test_import_does_not_create_directories`
+- `tests/test_render_flows_package.py`: +35 tests — parametrized `_card_badge` across
+  all URI patterns, `SVGBuilder` edge cases, and `render_standard_flow` direct call
+- `tests/test_svg_critical.py`: +3 CLI flag tests; manual `sys.argv` backup/restore
+  replaced with `monkeypatch`; mid-file `sys.path.insert` removed; `import render_flows`
+  moved to top-level imports
+- `tests/test_pure_functions.py`: per-file `sys.path.insert` removed
+- `tests/test_backup_new_categories.py`: renamed `test_settings_fetch_failure_does_not_abort`
+  → `test_app_saved_with_empty_settings`; removed dead `side_effect` override code
+
+### Tests
+- 124 → 249 tests (+125); coverage 53% → 76%
+
+---
+
 ## [0.3.0] — 2026-05-04
 
 ### Added
@@ -95,7 +130,8 @@ Initial release.
 - `restore.py` updated to discover backups under `Backups/<TIMESTAMP>/`
 - `_backup_items()` helper extracted in `backup.py` to eliminate per-category boilerplate
 
-[Unreleased]: https://github.com/Halfwalker/Homey-Backups/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/Halfwalker/Homey-Backups/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/Halfwalker/Homey-Backups/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Halfwalker/Homey-Backups/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/Halfwalker/Homey-Backups/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Halfwalker/Homey-Backups/compare/v0.1.0...v0.2.0
