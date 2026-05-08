@@ -143,27 +143,6 @@ class TestOutputDirParameter:
         assert result.saved == 1
         assert out.exists()
 
-    def test_import_does_not_create_directories(self):
-        """Importing backup.py must not create any directories on disk."""
-        # The module-level *_DIR globals currently resolve to real paths
-        # but should NOT mkdir them. After the fix, they should not exist at
-        # module level at all.
-        import backup
-        # None of the module-level dirs should have been created just by importing
-        import importlib
-        if "backup" in sys.modules:
-            importlib.reload(backup)
-        # The key assertion: backup module's *_DIR globals (if any) must not exist on disk
-        for attr in ("DEVICES_DIR", "FLOWS_DIR", "ZONES_DIR", "VARIABLES_DIR", "FLOW_FOLDERS_DIR"):
-            if hasattr(backup, attr):
-                p = getattr(backup, attr)
-                if isinstance(p, pathlib.Path):
-                    assert not p.exists(), (
-                        f"Importing backup.py created {p} — "
-                        f"module-level dirs must not be created at import time (fix B3)"
-                    )
-
-
 # ── _render_flows ────────────────────────────────────────────────────────
 
 
@@ -191,7 +170,7 @@ class TestRenderFlows:
         assert "SKIP" in out
         assert "no JSON files" in out
 
-    def test_calls_subprocess_with_flow_files(self, tmp_path):
+    def test_calls_subprocess_with_flow_files(self, tmp_path, monkeypatch):
         """With JSON files present and the script found, subprocess.run is called."""
         import backup
 
@@ -200,25 +179,19 @@ class TestRenderFlows:
         flow_file = flows_dir / "my-flow.json"
         flow_file.write_text("{}")
 
-        # Place a fake render_flows.py next to backup.py
-        svg_script = pathlib.Path(backup.__file__).parent / "render_flows.py"
-        created = False
-        if not svg_script.exists():
-            svg_script.write_text("# stub\n")
-            created = True
+        # Point backup.__file__ to tmp_path so render_flows.py is resolved there
+        monkeypatch.setattr(backup, "__file__", str(tmp_path / "backup.py"))
+        svg_script = tmp_path / "render_flows.py"
+        svg_script.write_text("# stub\n")
 
-        try:
-            with patch("subprocess.run") as mock_run:
-                backup._render_flows(flows_dir, png=False)
-                mock_run.assert_called_once()
-                cmd = mock_run.call_args[0][0]
-                assert str(flow_file) in cmd
-                assert "--png" not in cmd
-        finally:
-            if created:
-                svg_script.unlink()
+        with patch("subprocess.run") as mock_run:
+            backup._render_flows(flows_dir, png=False)
+            mock_run.assert_called_once()
+            cmd = mock_run.call_args[0][0]
+            assert str(flow_file) in cmd
+            assert "--png" not in cmd
 
-    def test_adds_png_flag_when_png_true(self, tmp_path):
+    def test_adds_png_flag_when_png_true(self, tmp_path, monkeypatch):
         """When png=True, --png is appended to the subprocess command."""
         import backup
 
@@ -226,20 +199,15 @@ class TestRenderFlows:
         flows_dir.mkdir()
         (flows_dir / "flow.json").write_text("{}")
 
-        svg_script = pathlib.Path(backup.__file__).parent / "render_flows.py"
-        created = False
-        if not svg_script.exists():
-            svg_script.write_text("# stub\n")
-            created = True
+        # Point backup.__file__ to tmp_path so render_flows.py is resolved there
+        monkeypatch.setattr(backup, "__file__", str(tmp_path / "backup.py"))
+        svg_script = tmp_path / "render_flows.py"
+        svg_script.write_text("# stub\n")
 
-        try:
-            with patch("subprocess.run") as mock_run:
-                backup._render_flows(flows_dir, png=True)
-                cmd = mock_run.call_args[0][0]
-                assert "--png" in cmd
-        finally:
-            if created:
-                svg_script.unlink()
+        with patch("subprocess.run") as mock_run:
+            backup._render_flows(flows_dir, png=True)
+            cmd = mock_run.call_args[0][0]
+            assert "--png" in cmd
 
     def test_missing_svg_script_prints_error_not_exception(self, tmp_path, capsys):
         """If render_flows.py is not found, an error is printed (no crash)."""

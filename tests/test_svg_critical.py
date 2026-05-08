@@ -6,6 +6,7 @@ Run:  pytest tests/test_svg_critical.py -v
 import json
 import pathlib
 import sys
+import render_flows
 
 
 SIMPLE_ADVANCED_FLOW = {
@@ -173,11 +174,6 @@ class TestAutoDiscoverSibling:
         assert result is None
 
 # ── TestFolderPrefixInSVG ────────────────────────────────────────────────
-
-import sys as _sys  # noqa: E402
-import pathlib as _pathlib  # noqa: E402
-_sys.path.insert(0, str(_pathlib.Path(__file__).parent.parent))
-import render_flows  # noqa: E402
 
 FOLDER_FLOW = {
     "id": "flow-with-folder",
