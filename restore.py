@@ -3,7 +3,6 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #   "inquirer",
-#   "pyperclip",
 # ]
 # ///
 """
@@ -37,11 +36,16 @@ except ImportError:
     )
     sys.exit(1)
 
-try:
-    import pyperclip
-    _CLIPBOARD_AVAILABLE = True
-except ImportError:
-    _CLIPBOARD_AVAILABLE = False
+import shutil
+import subprocess as _sp
+
+# Prefer xsel (proper setsid daemonisation) over xclip.
+_CLIPBOARD_CMD: list[str] | None = (
+    ["xsel", "--clipboard", "--input"] if shutil.which("xsel")
+    else ["xclip", "-selection", "clipboard"] if shutil.which("xclip")
+    else None
+)
+_CLIPBOARD_AVAILABLE = _CLIPBOARD_CMD is not None
 
 __version__ = "0.3.1"
 
@@ -279,13 +283,25 @@ def _copy_to_clipboard(text: str) -> bool:
     """
     Copy *text* to the system clipboard.
 
+    Uses xsel/xclip directly with ``start_new_session=True`` so the
+    clipboard tool survives after this process exits (X11 selections
+    require the owning process to stay alive to serve paste requests).
+
     Returns True on success, False if clipboard is unavailable.
     """
-    if not _CLIPBOARD_AVAILABLE:
+    if not _CLIPBOARD_CMD:
         return False
     try:
-        pyperclip.copy(text)
-        return True
+        p = _sp.Popen(
+            _CLIPBOARD_CMD,
+            stdin=_sp.PIPE,
+            stdout=_sp.DEVNULL,
+            stderr=_sp.DEVNULL,
+            start_new_session=True,
+            close_fds=True,
+        )
+        p.communicate(input=text.encode("utf-8"))
+        return p.returncode == 0
     except Exception as exc:  # noqa: BLE001
         print(f"[DEBUG] Clipboard failed: {exc}", file=sys.stderr)
         return False
@@ -405,7 +421,7 @@ def _present_item(item: dict, category: str) -> None:
 
     copy_choices = ["Yes, copy JSON to clipboard", "No thanks"]
     if not _CLIPBOARD_AVAILABLE:
-        copy_choices = ["No thanks (pyperclip not installed — pip install pyperclip)"]
+        copy_choices = ["No thanks (xsel/xclip not found — install one to enable clipboard)"]
 
     copy_answer = inquirer.prompt(
         [
@@ -425,7 +441,7 @@ def _present_item(item: dict, category: str) -> None:
         else:
             print(
                 "\n  [WARN] Could not copy to clipboard. "
-                "Install pyperclip:  pip install pyperclip",
+                "Install xsel or xclip for clipboard support.",
                 file=sys.stderr,
             )
 
