@@ -36,7 +36,7 @@
 │                     │              │                             │
 │  deps:              │              │  optional dep:              │
 │   - inquirer        │              │   - cairosvg (for --png)    │
-│   - pyperclip       │              │                             │
+│                     │              │                             │
 │                     │              │  outputs:                   │
 │  ZERO network calls │              │   - *.svg (default)         │
 │  clipboard + TUI    │              │   - *.png (with --png flag) │
@@ -208,14 +208,12 @@ Interactive terminal-based browser for local backup files. Allows the user to se
 # requires-python = ">=3.11"
 # dependencies = [
 #   "inquirer",
-#   "pyperclip",
 # ]
 # ///
 ```
 
 Dependencies:
 - `inquirer` — interactive terminal prompts (list selection, text input)
-- `pyperclip` — cross-platform clipboard copy (optional — gracefully degrades)
 
 ### Interactive menu flow
 
