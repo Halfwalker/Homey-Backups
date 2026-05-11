@@ -311,3 +311,188 @@ class TestHomeyAPIEdgeCases:
         ):
             result = api.get_advanced_flow("flow-abc")
         assert result is None
+
+
+# ── Critical — main() ─────────────────────────────────────────────────
+
+_ALL_BACKUP_PATCHES = [
+    "backup.backup_devices",
+    "backup.backup_flows",
+    "backup.backup_flow_folders",
+    "backup.backup_zones",
+    "backup.backup_logic_variables",
+    "backup.backup_apps",
+    "backup.backup_system_info",
+    "backup.backup_geolocation",
+    "backup.backup_dashboards",
+    "backup.backup_moods",
+]
+
+
+def _fake_result():
+    import backup
+    return backup.BackupResult(category="test")
+
+
+class TestMain:
+    """Tests for backup.main() covering config validation, all 10 backup categories, and render flags."""
+
+    def test_missing_url_exits_with_code_1(self):
+        """main() exits with code 1 when HOMEY_API_URL is empty."""
+        import backup
+        with patch("sys.argv", ["backup.py"]), \
+             patch("backup.HOMEY_API_URL", ""), \
+             patch("backup.HOMEY_API_TOKEN", "atk_faketoken"):
+            with pytest.raises(SystemExit) as exc_info:
+                backup.main()
+        assert exc_info.value.code == 1
+
+    def test_missing_token_exits_with_code_1(self):
+        """main() exits with code 1 when HOMEY_API_TOKEN is empty."""
+        import backup
+        with patch("sys.argv", ["backup.py"]), \
+             patch("backup.HOMEY_API_URL", "http://192.168.1.1"), \
+             patch("backup.HOMEY_API_TOKEN", ""):
+            with pytest.raises(SystemExit) as exc_info:
+                backup.main()
+        assert exc_info.value.code == 1
+
+    def test_invalid_token_format_prints_warning_but_continues(self, capsys):
+        """main() prints a [WARN] to stderr for an unrecognised token format but does not exit."""
+        import backup
+        fake_result = _fake_result()
+        patches = {p: patch(p, return_value=fake_result) for p in _ALL_BACKUP_PATCHES}
+        with patch("sys.argv", ["backup.py"]), \
+             patch("backup.HOMEY_API_URL", "http://192.168.1.1"), \
+             patch("backup.HOMEY_API_TOKEN", "invalid-token"), \
+             patch("backup.HomeyAPI"), \
+             patch("backup.datetime") as mock_dt, \
+             patch("backup._print_summary"):
+            mock_dt.datetime.now.return_value.strftime.return_value = "2026-05-11_00-00"
+            with patches["backup.backup_devices"], \
+                 patches["backup.backup_flows"], \
+                 patches["backup.backup_flow_folders"], \
+                 patches["backup.backup_zones"], \
+                 patches["backup.backup_logic_variables"], \
+                 patches["backup.backup_apps"], \
+                 patches["backup.backup_system_info"], \
+                 patches["backup.backup_geolocation"], \
+                 patches["backup.backup_dashboards"], \
+                 patches["backup.backup_moods"]:
+                backup.main()
+        captured = capsys.readouterr()
+        assert "[WARN]" in captured.err
+
+    def test_successful_backup_calls_all_10_categories(self):
+        """main() calls all 10 backup_* functions exactly once with valid credentials."""
+        import backup
+        fake_result = _fake_result()
+        with patch("sys.argv", ["backup.py"]), \
+             patch("backup.HOMEY_API_URL", "http://192.168.1.1"), \
+             patch("backup.HOMEY_API_TOKEN", "atk_valid"), \
+             patch("backup.HomeyAPI"), \
+             patch("backup.datetime") as mock_dt, \
+             patch("backup.backup_devices", return_value=fake_result) as mock_devices, \
+             patch("backup.backup_flows", return_value=fake_result) as mock_flows, \
+             patch("backup.backup_flow_folders", return_value=fake_result) as mock_folders, \
+             patch("backup.backup_zones", return_value=fake_result) as mock_zones, \
+             patch("backup.backup_logic_variables", return_value=fake_result) as mock_vars, \
+             patch("backup.backup_apps", return_value=fake_result) as mock_apps, \
+             patch("backup.backup_system_info", return_value=fake_result) as mock_sysinfo, \
+             patch("backup.backup_geolocation", return_value=fake_result) as mock_geo, \
+             patch("backup.backup_dashboards", return_value=fake_result) as mock_dash, \
+             patch("backup.backup_moods", return_value=fake_result) as mock_moods, \
+             patch("backup._print_summary"):
+            mock_dt.datetime.now.return_value.strftime.return_value = "2026-05-11_00-00"
+            backup.main()
+
+        mock_devices.assert_called_once()
+        mock_flows.assert_called_once()
+        mock_folders.assert_called_once()
+        mock_zones.assert_called_once()
+        mock_vars.assert_called_once()
+        mock_apps.assert_called_once()
+        mock_sysinfo.assert_called_once()
+        mock_geo.assert_called_once()
+        mock_dash.assert_called_once()
+        mock_moods.assert_called_once()
+
+    def test_render_svg_flag_calls_render_flows(self):
+        """main() calls _render_flows with png=False when --render-svg is passed."""
+        import backup
+        from unittest.mock import ANY
+        fake_result = _fake_result()
+        with patch("sys.argv", ["backup.py", "--render-svg"]), \
+             patch("backup.HOMEY_API_URL", "http://192.168.1.1"), \
+             patch("backup.HOMEY_API_TOKEN", "atk_valid"), \
+             patch("backup.HomeyAPI"), \
+             patch("backup.datetime") as mock_dt, \
+             patch("backup.backup_devices", return_value=fake_result), \
+             patch("backup.backup_flows", return_value=fake_result), \
+             patch("backup.backup_flow_folders", return_value=fake_result), \
+             patch("backup.backup_zones", return_value=fake_result), \
+             patch("backup.backup_logic_variables", return_value=fake_result), \
+             patch("backup.backup_apps", return_value=fake_result), \
+             patch("backup.backup_system_info", return_value=fake_result), \
+             patch("backup.backup_geolocation", return_value=fake_result), \
+             patch("backup.backup_dashboards", return_value=fake_result), \
+             patch("backup.backup_moods", return_value=fake_result), \
+             patch("backup._print_summary"), \
+             patch("backup._render_flows") as mock_render:
+            mock_dt.datetime.now.return_value.strftime.return_value = "2026-05-11_00-00"
+            backup.main()
+
+        mock_render.assert_called_once_with(ANY, png=False)
+
+    def test_render_png_flag_calls_render_flows_with_png_true(self):
+        """main() calls _render_flows with png=True when --render-png is passed."""
+        import backup
+        from unittest.mock import ANY
+        fake_result = _fake_result()
+        with patch("sys.argv", ["backup.py", "--render-png"]), \
+             patch("backup.HOMEY_API_URL", "http://192.168.1.1"), \
+             patch("backup.HOMEY_API_TOKEN", "atk_valid"), \
+             patch("backup.HomeyAPI"), \
+             patch("backup.datetime") as mock_dt, \
+             patch("backup.backup_devices", return_value=fake_result), \
+             patch("backup.backup_flows", return_value=fake_result), \
+             patch("backup.backup_flow_folders", return_value=fake_result), \
+             patch("backup.backup_zones", return_value=fake_result), \
+             patch("backup.backup_logic_variables", return_value=fake_result), \
+             patch("backup.backup_apps", return_value=fake_result), \
+             patch("backup.backup_system_info", return_value=fake_result), \
+             patch("backup.backup_geolocation", return_value=fake_result), \
+             patch("backup.backup_dashboards", return_value=fake_result), \
+             patch("backup.backup_moods", return_value=fake_result), \
+             patch("backup._print_summary"), \
+             patch("backup._render_flows") as mock_render:
+            mock_dt.datetime.now.return_value.strftime.return_value = "2026-05-11_00-00"
+            backup.main()
+
+        mock_render.assert_called_once_with(ANY, png=True)
+
+    def test_no_render_flag_does_not_call_render_flows(self):
+        """main() does not call _render_flows when no render flag is passed."""
+        import backup
+        fake_result = _fake_result()
+        with patch("sys.argv", ["backup.py"]), \
+             patch("backup.HOMEY_API_URL", "http://192.168.1.1"), \
+             patch("backup.HOMEY_API_TOKEN", "atk_valid"), \
+             patch("backup.HomeyAPI"), \
+             patch("backup.datetime") as mock_dt, \
+             patch("backup.backup_devices", return_value=fake_result), \
+             patch("backup.backup_flows", return_value=fake_result), \
+             patch("backup.backup_flow_folders", return_value=fake_result), \
+             patch("backup.backup_zones", return_value=fake_result), \
+             patch("backup.backup_logic_variables", return_value=fake_result), \
+             patch("backup.backup_apps", return_value=fake_result), \
+             patch("backup.backup_system_info", return_value=fake_result), \
+             patch("backup.backup_geolocation", return_value=fake_result), \
+             patch("backup.backup_dashboards", return_value=fake_result), \
+             patch("backup.backup_moods", return_value=fake_result), \
+             patch("backup._print_summary"), \
+             patch("backup._render_flows") as mock_render:
+            mock_dt.datetime.now.return_value.strftime.return_value = "2026-05-11_00-00"
+            backup.main()
+
+        mock_render.assert_not_called()
