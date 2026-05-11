@@ -7,7 +7,6 @@ dependencies = [
     "requests>=2.31",
     "python-slugify>=8.0",
     "inquirer>=3.4",
-    "pyperclip>=1.8",
 ]
 
 [project.optional-dependencies]
