@@ -218,7 +218,7 @@ Dependencies:
 ### Interactive menu flow
 
 1. **Banner** — ASCII art header displayed once
-2. **Choose category** — `inquirer.List` with choices: Device, Flow, Flow Folder, Zone, Variable
+2. **Choose category** — `inquirer.List` with choices: Device, Flow, Flow Folder, Zone, Variable, App, Dashboard, Mood
 3. **Select backup date** — lists all timestamped subdirectories under the category folder, user picks one
 4. **Filter by name** — optional text filter (case-insensitive substring match)
 5. **Select item** — scrollable list showing `name (id: uuid)`, or "← Back" to restart
@@ -237,6 +237,9 @@ Dependencies:
 | Flow Folder | `POST /api/manager/flow/flowfolder` (create) or `PUT /api/manager/flow/flowfolder/<id>` (update); parent folders first; build old→new UUID mapping before importing flows |
 | Zone | `POST /api/manager/zones/zone` (create) or `PUT /api/manager/zones/zone/<id>` (update); parent zones first |
 | Variable | Logic: `POST` or `PUT /api/manager/logic/variable/<id>`; BLL: via app settings or `PUT /api/app/net.i-dev.betterlogic/variable/<name>` |
+| App | Browse backup JSONs with `restore.py` (App category); re-apply individual settings via `PUT /api/app/<appId>/setting/<key>` for each key |
+| Dashboard | Cannot be re-imported via API — rebuild manually in the Homey app |
+| Mood | `POST /api/manager/ledring/mood`; moods reference device UUIDs — restore **after** Step 5 (device re-pairing) |
 
 ### Field guidance for API writes
 
@@ -301,16 +304,18 @@ Both `uv run render_flows.py ...` and `python -m render_flows ...` work.
 
 ### Module dependency graph
 
-```
-_constants
-    └── _label_parser
-            └── _svg_builder
-                    └── _lookups
-                            └── _renderers
-                                    └── _cli
-```
+The dependency structure is a DAG, not a linear chain:
 
-Each module only imports from modules to its left in this chain. There are no circular dependencies.
+| Module | Imports from |
+|---|---|
+| `_constants` | *(leaf — stdlib only)* |
+| `_label_parser` | *(leaf — stdlib `re` only)* |
+| `_svg_builder` | `_label_parser` |
+| `_lookups` | *(leaf — stdlib `json`, `re`, `pathlib`)* |
+| `_renderers` | `_constants`, `_label_parser`, `_svg_builder`, `_lookups` |
+| `_cli` | `_constants`, `_lookups`, `_renderers` |
+
+There are no circular dependencies.
 
 ### render_flows.py script
 
@@ -381,6 +386,7 @@ def render_standard_flow(
     device_lookup: dict[str, str] | None = None,
     var_lookup: dict[str, str] | None = None,
     zone_lookup: dict[str, str] | None = None,
+    folder_lookup: dict[str, str] | None = None,
     cap_titles: "dict[str, dict[str, tuple[str, str]]] | None" = None,
     to_png: bool = False,
 ) -> None:
@@ -407,6 +413,7 @@ def render_flow(
     device_lookup: dict[str, str] | None = None,
     var_lookup: dict[str, str] | None = None,
     zone_lookup: dict[str, str] | None = None,
+    folder_lookup: dict[str, str] | None = None,
     cap_titles: "dict[str, dict[str, tuple[str, str]]] | None" = None,
     to_png: bool = False,
 ) -> None:
@@ -796,7 +803,7 @@ uv run render_flows.py Backups/2026-04-26_14-05/flows/*.json -d test-output/ --p
 - **Badges**: Do card badges match the expected type?
 - **Colors**: Are wire colors correct (blue=success, green=true, amber=false)?
 - **Standard flows**: Do they render as vertical 2-column layout?
-- **Disabled flows**: Does the trigger card show a disabled overlay?
+- **Disabled flows**: Do ALL cards show a semi-transparent disabled overlay? (Not just the trigger card.)
 - **Port positions**: Are T/F/E dots on the correct vertical offsets?
 
 ### Smoke test (no external deps)
