@@ -76,18 +76,21 @@ def list_backup_dates(category: str) -> list[pathlib.Path]:
     """Return sorted list of per-category backup directories across all timestamps.
 
     Scans ``Backups/*/CATEGORY_NAME/`` and returns paths like
-    ``Backups/2026-04-30_21-00/devices/``, sorted by timestamp.
+    ``Backups/2026-04-30_21-00/devices/``, newest timestamp first.
     Returns an empty list if no matching backups exist.
     """
     subdir_name = CATEGORY_SUBDIRS[category]
     if not _BACKUPS_ROOT.is_dir():
         return []
     return sorted(
-        p
-        for ts_dir in _BACKUPS_ROOT.iterdir()
-        if ts_dir.is_dir() and "_" in ts_dir.name
-        for p in [ts_dir / subdir_name]
-        if p.is_dir()
+        (
+            p
+            for ts_dir in _BACKUPS_ROOT.iterdir()
+            if ts_dir.is_dir() and "_" in ts_dir.name
+            for p in [ts_dir / subdir_name]
+            if p.is_dir()
+        ),
+        reverse=True,
     )
 
 

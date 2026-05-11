@@ -431,7 +431,7 @@ class TestListBackupDates:
         with patch.object(restore, "_BACKUPS_ROOT", root):
             result = restore.list_backup_dates("device")
         assert len(result) == 2
-        assert result[0].parent.name < result[1].parent.name
+        assert result[0].parent.name > result[1].parent.name  # newest first
 
     def test_excludes_dirs_without_underscore(self, tmp_path):
         root = tmp_path / "Backups"
