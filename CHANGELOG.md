@@ -6,14 +6,31 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.3.2] — 2026-05-11
+
+Oracle-reviewed quality pass: clipboard fix, doc gaps, test coverage, and code cleanup.
+
 ### Fixed
 - `restore.py`: backup date list now shows newest timestamp first (was ascending)
+- `restore.py`: clipboard now works on macOS (`pbcopy`) and Windows (`clip.exe`) — broken after pyperclip removal
 
 ### Changed
-- Removed `pyperclip` dependency — clipboard is handled via subprocess fallback; no external library needed
+- `backup.py`: extracted `_default_filename()` helper, eliminating 7 near-identical closures across backup functions
+- Removed `pyperclip` dependency — clipboard is now handled via subprocess; no external library needed
+
+### Docs
+- `TECHDOCS.md`: filled 5 gaps — interactive menu categories, re-import table, module dependency graph, `render_flow()`/`render_standard_flow()` signatures, disabled-flow overlay wording
+- `RECOVERY.md`: added mood restoration step, app settings restoration step, and zone UUID remapping warning
+- `README.md`: updated clipboard troubleshooting — removed stale pyperclip advice, added macOS/Windows guidance
 
 ### Tests
-- Added `TestSVGRenderIntegration` in `tests/test_svg_critical.py`: three end-to-end tests covering advanced flow render, standard flow render, and disabled-flow overlay.
+- `test_restore_interactive.py`: 23 new tests covering interactive restore functions — `restore.py` coverage 31% → 92%
+- `test_backup_critical.py`: 6 new `TestMain` tests covering `backup.main()` env validation, all 10 backup categories, and render flag dispatch
+- `test_label_parser.py`: 18 new branch-coverage tests — `_label_parser.py` 85% → 100%
+- Added end-to-end SVG render pipeline integration tests
+- Housekeeping: unified `_make_api` in `conftest.py`, removed dead `_write_json`, reformatted 190-char line in `_cli.py`
 
 ---
 
