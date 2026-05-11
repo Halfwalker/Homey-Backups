@@ -13,7 +13,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Removed `pyperclip` dependency — clipboard is handled via subprocess fallback; no external library needed
 
 ### Tests
-- Added `TestSVGRenderIntegration` in `tests/test_svg_critical.py`: three end-to-end tests covering advanced flow render, standard flow render, and disabled-flow overlay. Total: 252 tests.
+- Added `TestSVGRenderIntegration` in `tests/test_svg_critical.py`: three end-to-end tests covering advanced flow render, standard flow render, and disabled-flow overlay.
 
 ---
 

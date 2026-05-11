@@ -6,22 +6,8 @@ Tests for backup categories added in batches 1 and 2:
 Run:  pytest tests/test_backup_new_categories.py -v
 """
 import json
-from unittest.mock import MagicMock
 
-
-# ── helpers ─────────────────────────────────────────────────────────────
-
-
-def _make_api(**kwargs):
-    """Return a MagicMock HomeyAPI with sensible defaults for new categories."""
-    api = MagicMock()
-    api.get_apps.return_value = kwargs.get("apps", [])
-    api.get_app_settings.return_value = kwargs.get("app_settings", {})
-    api.get_system_info.return_value = kwargs.get("system_info", {})
-    api.get_dashboards.return_value = kwargs.get("dashboards", [])
-    api.get_moods.return_value = kwargs.get("moods", [])
-    api.get_geolocation.return_value = kwargs.get("geolocation", {})
-    return api
+from tests.conftest import _make_api
 
 
 # ── backup_apps ──────────────────────────────────────────────────────────
