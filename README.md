@@ -397,9 +397,9 @@ Matrix: **Python 3.11**, **Python 3.12**, and **Python 3.13** (all must pass).
 | `Cannot connect to Homey` | Check your Homey's IP; ensure your machine is on the same network |
 | `HTTP 401` | Token is invalid or expired — generate a new Personal Access Token in the Homey app |
 | `'inquirer' is not installed` | Run `uv sync` or `uv run restore.py` (auto-installs via inline header) |
-| Clipboard copy fails (Linux) | `sudo apt install xclip` or `sudo apt install xsel` |
-| Clipboard copy fails (macOS) | Should work natively via `pbcopy`; if not, try `pip install pyperclip --upgrade` |
-| Clipboard copy fails (Windows) | Should work natively; if not, try `pip install pyperclip --upgrade` |
+| Clipboard copy fails (Linux) | `sudo apt install xsel` (preferred) or `sudo apt install xclip` |
+| Clipboard copy fails (macOS) | `pbcopy` is auto-detected — should work out of the box; if not, check that `/usr/bin/pbcopy` exists |
+| Clipboard copy fails (Windows) | `clip.exe` is auto-detected — should work out of the box; if not, check that `clip` is on your PATH |
 | Backup directory already exists | Each backup run needs a unique timestamp — wait a minute, delete the existing directory, or re-run with `--force` to overwrite it |
 | SVG shows `[var:041893df]` | Run `backup.py` first to create a `Backups/TIMESTAMP/variables/` backup; the renderer auto-discovers it |
 | Flows restored but show as broken | Flow references old device UUID — re-pair the device and update the flow card; see [RECOVERY.md](./RECOVERY.md) |
