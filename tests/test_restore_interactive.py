@@ -19,7 +19,7 @@ import pathlib
 import subprocess
 
 import pytest
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 
 import restore
 

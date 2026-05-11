@@ -187,4 +187,12 @@ def main() -> None:
         else:
             out = str(p.with_suffix(".svg"))
 
-        render_flow(flow, out, device_lookup=device_lookup or None, var_lookup=var_lookup or None, zone_lookup=zone_lookup or None, cap_titles=cap_titles or None, to_png=args.png, folder_lookup=folder_lookup or None)
+        render_flow(
+            flow, out,
+            device_lookup=device_lookup or None,
+            var_lookup=var_lookup or None,
+            zone_lookup=zone_lookup or None,
+            folder_lookup=folder_lookup or None,
+            cap_titles=cap_titles or None,
+            to_png=args.png,
+        )

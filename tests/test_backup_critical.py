@@ -7,22 +7,7 @@ Run:  pytest tests/test_backup_critical.py -v
 from unittest.mock import MagicMock, patch
 import pytest
 
-# ── helpers ─────────────────────────────────────────────────────────────
-
-
-def _make_api(devices=None, flows=None, advanced_flows=None,
-              flow_folders=None, zones=None, logic_vars=None, bll_vars=None):
-    """Return a MagicMock HomeyAPI pre-configured with empty-list defaults."""
-    api = MagicMock()
-    api.get_devices.return_value = devices if devices is not None else []
-    api.get_flows.return_value = flows if flows is not None else []
-    api.get_advanced_flows.return_value = advanced_flows if advanced_flows is not None else []
-    api.get_flow_folders.return_value = flow_folders if flow_folders is not None else []
-    api.get_zones.return_value = zones if zones is not None else []
-    api.get_logic_variables.return_value = logic_vars if logic_vars is not None else []
-    api.get_bll_variables.return_value = bll_vars if bll_vars is not None else []
-    return api
-
+from tests.conftest import _make_api
 
 # ── Critical 1.1 — HomeyAPIError ──────────────────────────────────────
 
