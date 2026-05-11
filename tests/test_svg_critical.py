@@ -296,3 +296,99 @@ class TestCLIFlags:
 
         err = capsys.readouterr().err
         assert "Not found" in err
+
+
+class TestSVGRenderIntegration:
+    """End-to-end: flow dict → render_flow() → SVG file on disk."""
+
+    def test_advanced_flow_renders_to_svg(self, tmp_path):
+        """A minimal advanced flow produces a well-formed SVG file."""
+        flow = {
+            "id": "adv-1",
+            "name": "Motion Light",
+            "enabled": True,
+            "flow_type": "advanced",
+            "cards": {
+                "t1": {
+                    "type": "trigger",
+                    "id": "homey:device:dev-uuid-1:alarm_motion",
+                    "x": 50, "y": 100,
+                    "outputSuccess": ["c1"],
+                },
+                "c1": {
+                    "type": "condition",
+                    "id": "homey:manager:logic:boolean",
+                    "x": 250, "y": 100,
+                    "inverted": True,
+                    "outputTrue": ["a1"],
+                    "outputFalse": [],
+                },
+                "a1": {
+                    "type": "action",
+                    "id": "homey:device:dev-uuid-2:onoff",
+                    "x": 450, "y": 100,
+                    "outputSuccess": [],
+                },
+            },
+        }
+        device_lookup = {"dev-uuid-1": "Motion Sensor", "dev-uuid-2": "Ceiling Light"}
+        out = str(tmp_path / "motion_light.svg")
+        render_flows.render_flow(flow, out, device_lookup=device_lookup)
+
+        svg_path = tmp_path / "motion_light.svg"
+        assert svg_path.exists(), "SVG file was not created"
+        content = svg_path.read_text(encoding="utf-8")
+
+        assert "<svg" in content, "Output is not an SVG"
+        assert "Motion Light" in content, "Flow name missing from SVG"
+        assert "DEVICE TRIGGER" in content, "Trigger badge missing"
+        assert "NOT LOGIC CONDITION" in content, "Inverted condition badge missing"
+
+    def test_standard_flow_renders_to_svg(self, tmp_path):
+        """A minimal standard flow (trigger only) produces a valid SVG."""
+        flow = {
+            "id": "std-1",
+            "name": "Daily Backup",
+            "enabled": True,
+            "flow_type": "normal",
+            "trigger": {
+                "id": "homey:manager:cron:time_exactly",
+                "args": {"time": "03:00"},
+            },
+            "conditions": [],
+            "actions": [],
+        }
+        out = str(tmp_path / "daily_backup.svg")
+        render_flows.render_flow(flow, out)
+
+        svg_path = tmp_path / "daily_backup.svg"
+        assert svg_path.exists(), "SVG file was not created"
+        content = svg_path.read_text(encoding="utf-8")
+
+        assert "<svg" in content
+        assert "Daily Backup" in content, "Flow name missing from SVG"
+        assert "CRON TRIGGER" in content, "Cron trigger badge missing"
+
+    def test_disabled_flow_renders_without_crash(self, tmp_path):
+        """A disabled flow renders successfully (overlay applied, no exception)."""
+        flow = {
+            "id": "dis-1",
+            "name": "Disabled Flow",
+            "enabled": False,
+            "flow_type": "advanced",
+            "cards": {
+                "t1": {
+                    "type": "trigger",
+                    "id": "homey:manager:system:boot",
+                    "x": 50, "y": 100,
+                    "outputSuccess": [],
+                },
+            },
+        }
+        out = str(tmp_path / "disabled.svg")
+        render_flows.render_flow(flow, out)
+
+        svg_path = tmp_path / "disabled.svg"
+        assert svg_path.exists()
+        content = svg_path.read_text(encoding="utf-8")
+        assert "DISABLED" in content, "DISABLED badge missing from disabled flow SVG"
