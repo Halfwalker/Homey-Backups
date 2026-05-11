@@ -325,6 +325,22 @@ def _backup_items(
     return result
 
 
+def _default_filename(item: dict, category_label: str) -> str | None:
+    """Return the JSON filename for *item*, or ``None`` if the item has no ID.
+
+    Used by all ``backup_*`` functions that follow the standard
+    ``{slug}-{id}.json`` naming pattern.  *category_label* is used only in
+    the ``[WARN]`` message when an ID is missing (e.g. ``"Device"``,
+    ``"Flow"``, ``"Zone"``).
+    """
+    item_id = item.get("id") or item.get("_id") or item.get("ID")
+    name = item.get("name") or item.get("title") or ""
+    if not item_id:
+        print(f"[WARN] {category_label} without ID skipped: {name!r}")
+        return None
+    return f"{slugify(name, separator='-') if name else 'unnamed'}-{item_id}.json"
+
+
 # ---------------------------------------------------------------------------
 # Backup logic — devices
 # ---------------------------------------------------------------------------
@@ -341,15 +357,8 @@ def backup_devices(api: HomeyAPI, output_dir: pathlib.Path, force: bool = False)
         print(f"[ERROR] {exc}", file=sys.stderr)
         return result
 
-    def _filename(item: dict) -> str | None:
-        item_id = item.get("id") or item.get("_id") or item.get("ID")
-        name = item.get("name") or item.get("title") or ""
-        if not item_id:
-            print(f"[WARN] Device without ID skipped: {name!r}")
-            return None
-        return f"{slugify(name, separator='-') if name else 'unnamed'}-{item_id}.json"
-
-    return _backup_items(items, output_dir, "Devices", "devices", _filename,
+    return _backup_items(items, output_dir, "Devices", "devices",
+                         lambda item: _default_filename(item, "Device"),
                          warn_empty="No devices returned by API.", force=force)
 
 
@@ -376,15 +385,8 @@ def backup_flows(api: HomeyAPI, output_dir: pathlib.Path, force: bool = False) -
         flow["flow_type"] = "advanced"
     items = normal + advanced
 
-    def _filename(item: dict) -> str | None:
-        item_id = item.get("id") or item.get("_id") or item.get("ID")
-        name = item.get("name") or item.get("title") or ""
-        if not item_id:
-            print(f"[WARN] Flow without ID skipped: {name!r}")
-            return None
-        return f"{slugify(name, separator='-') if name else 'unnamed'}-{item_id}.json"
-
-    return _backup_items(items, output_dir, "Flows", "flows", _filename,
+    return _backup_items(items, output_dir, "Flows", "flows",
+                         lambda item: _default_filename(item, "Flow"),
                          warn_empty="No flows returned by API.", force=force)
 
 
@@ -404,15 +406,8 @@ def backup_flow_folders(api: HomeyAPI, output_dir: pathlib.Path, force: bool = F
         print(f"[ERROR] {exc}", file=sys.stderr)
         return result
 
-    def _filename(item: dict) -> str | None:
-        item_id = item.get("id") or item.get("_id") or item.get("ID")
-        name = item.get("name") or item.get("title") or ""
-        if not item_id:
-            print(f"[WARN] Flow folder without ID skipped: {name!r}")
-            return None
-        return f"{slugify(name, separator='-') if name else 'unnamed'}-{item_id}.json"
-
-    return _backup_items(items, output_dir, "Flow Folders", "flow folders", _filename,
+    return _backup_items(items, output_dir, "Flow Folders", "flow folders",
+                         lambda item: _default_filename(item, "Flow folder"),
                          warn_empty="No flow folders returned by API (all flows may be in root).", force=force)
 
 
@@ -432,15 +427,8 @@ def backup_zones(api: HomeyAPI, output_dir: pathlib.Path, force: bool = False) -
         print(f"[ERROR] {exc}", file=sys.stderr)
         return result
 
-    def _filename(item: dict) -> str | None:
-        item_id = item.get("id") or item.get("_id") or item.get("ID")
-        name = item.get("name") or item.get("title") or ""
-        if not item_id:
-            print(f"[WARN] Zone without ID skipped: {name!r}")
-            return None
-        return f"{slugify(name, separator='-') if name else 'unnamed'}-{item_id}.json"
-
-    return _backup_items(items, output_dir, "Zones", "zones", _filename,
+    return _backup_items(items, output_dir, "Zones", "zones",
+                         lambda item: _default_filename(item, "Zone"),
                          warn_empty="No zones returned by API.", force=force)
 
 
@@ -509,15 +497,8 @@ def backup_apps(api: HomeyAPI, output_dir: pathlib.Path, force: bool = False) ->
         if app_id:
             item["settings"] = api.get_app_settings(app_id)
 
-    def _filename(item: dict) -> str | None:
-        app_id = item.get("id") or item.get("_id") or item.get("ID")
-        name = item.get("name") or item.get("title") or ""
-        if not app_id:
-            print(f"[WARN] App without ID skipped: {name!r}")
-            return None
-        return f"{slugify(name, separator='-') if name else 'unnamed'}-{app_id}.json"
-
-    return _backup_items(items, output_dir, "Apps", "apps", _filename,
+    return _backup_items(items, output_dir, "Apps", "apps",
+                         lambda item: _default_filename(item, "App"),
                          warn_empty="No apps returned by API.", force=force)
 
 
@@ -625,15 +606,8 @@ def backup_dashboards(api: HomeyAPI, output_dir: pathlib.Path, force: bool = Fal
         print(f"[ERROR] {exc}", file=sys.stderr)
         return result
 
-    def _filename(item: dict) -> str | None:
-        item_id = item.get("id") or item.get("_id") or item.get("ID")
-        name = item.get("name") or item.get("title") or ""
-        if not item_id:
-            print(f"[WARN] Dashboard without ID skipped: {name!r}")
-            return None
-        return f"{slugify(name, separator='-') if name else 'unnamed'}-{item_id}.json"
-
-    return _backup_items(items, output_dir, "Dashboards", "dashboards", _filename,
+    return _backup_items(items, output_dir, "Dashboards", "dashboards",
+                         lambda item: _default_filename(item, "Dashboard"),
                          warn_empty="No dashboards returned by API.", force=force)
 
 
@@ -653,15 +627,8 @@ def backup_moods(api: HomeyAPI, output_dir: pathlib.Path, force: bool = False) -
         print(f"[ERROR] {exc}", file=sys.stderr)
         return result
 
-    def _filename(item: dict) -> str | None:
-        item_id = item.get("id") or item.get("_id") or item.get("ID")
-        name = item.get("name") or item.get("title") or ""
-        if not item_id:
-            print(f"[WARN] Mood without ID skipped: {name!r}")
-            return None
-        return f"{slugify(name, separator='-') if name else 'unnamed'}-{item_id}.json"
-
-    return _backup_items(items, output_dir, "Moods", "light scenes", _filename,
+    return _backup_items(items, output_dir, "Moods", "light scenes",
+                         lambda item: _default_filename(item, "Mood"),
                          warn_empty="No moods returned by API.", force=force)
 
 
