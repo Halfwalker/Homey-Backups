@@ -79,6 +79,15 @@ After the factory reset completes and Homey is back online:
 - Open the Homey app → Apps → search and reinstall each app you use (BLL, etc.)
 - Wait for each app to fully initialize before proceeding
 
+**After reinstalling, restore app settings from backup:**
+The backup contains per-app settings JSON. For each app that stores configuration (API keys, device preferences, etc.):
+```bash
+uv run restore.py
+# Choose: App → select backup date → select app → view settings for reference
+# Re-apply each setting via: PUT /api/app/<appId>/setting/<key>
+```
+> **Note:** Reinstalling an app does NOT restore its settings — they must be re-applied manually. Skipping this step silently loses all app configuration.
+
 ---
 
 ### Step 3 — Restore Zones
@@ -91,6 +100,8 @@ Zones must exist before flows are imported — flow cards reference zone UUIDs d
 ls Backups/YYYY-MM-DD_HH-MM/zones/
 ```
 Open a few zone JSON files and look at the `parent` field — restore zones with `"parent": null` (root zones) first, then child zones.
+
+> **⚠️ UUID remapping required for child zones:** The `parent` field in each zone backup JSON contains the **old** parent UUID. After a factory reset, root zones are re-created with new UUIDs. Before POSTing each child zone, update its `parent` field to the **new** UUID of the already-restored parent zone. (This is the same UUID-remapping pattern required for flow folders in Step 6.)
 
 **Create each zone via REST API:**
 ```bash
@@ -161,6 +172,29 @@ This is the most manual and most critical step.
 > **⚠️ This mapping table is critical.** Every flow card that controls or reads a device uses the device's UUID. After re-pairing, the old UUIDs no longer exist on your Homey. You will use this table in Step 7 to fix broken flows.
 
 The device backup JSON files are useful as **reference documents** — they contain the device name, settings, and capability configuration from before the reset. However, you cannot simply POST the backup JSON to restore a device; devices are managed by their app driver and must be physically re-paired.
+
+---
+
+### Step 5b — Restore Moods / Light Scenes
+
+Moods reference device UUIDs internally — restore them **after** Step 5 (device re-pairing) so the UUID references are valid.
+
+**Via restore.py (recommended):**
+```bash
+uv run restore.py
+# Choose: Mood → select backup date → select mood → copy to clipboard
+```
+Then POST the JSON at [developer.homey.app](https://developer.homey.app) → your Homey → `POST /api/manager/ledring/mood`.
+
+**Via REST API directly:**
+```bash
+curl -X POST "$HOMEY_API_URL/api/manager/ledring/mood" \
+  -H "Authorization: Bearer $HOMEY_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d @Backups/YYYY-MM-DD_HH-MM/moods/your-mood.json
+```
+
+> **Verify:** Check the Homey app → Settings → Moods/Scenes to confirm moods appear correctly.
 
 ---
 
@@ -272,6 +306,7 @@ Step 2: Reinstall apps (BLL, etc.)
 Step 3: Restore Zones           ← must exist before flows
 Step 4: Restore Variables       ← must exist before flows
 Step 5: Re-pair Devices         ← record old→new UUID mapping
+Step 5b: Restore Moods          ← after devices; moods reference device UUIDs
 Step 6: Restore Flow Folders    ← build old→new folder UUID mapping
 Step 7: Restore Flows           ← update folder fields using Step 6 mapping
 Step 8: Fix broken flow refs    ← use device UUID mapping from Step 5
