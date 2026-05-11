@@ -36,7 +36,7 @@ If you haven't performed the factory reset yet, verify these first:
 
 - [ ] Run `uv run backup.py --render-png` and confirm the summary shows the expected item counts
 - [ ] Check that a `Backups/` directory was created with today's timestamp and contains subdirectories:
-  `flows/`, `zones/`, `variables/`, `devices/`, `apps/`, `moods/`, `dashboards/`
+  `flows/`, `flow_folders/`, `zones/`, `variables/`, `devices/`, `apps/`, `moods/`, `dashboards/`
   and files: `geolocation.json`, `meta.json`
 - [ ] Check that the `Backups/TIMESTAMP/flows` directory contains the expected flows, and that the `.png` images of those rendered flows match what's expected
 - [ ] Note your Homey's current IP address (check your router's DHCP table)
@@ -135,7 +135,7 @@ curl -X POST "$HOMEY_API_URL/api/manager/logic/variable" \
   -d '{"name": "Morning Mode", "type": "boolean", "value": false}'
 ```
 
-The variable JSON in your backup contains `id`, `name`, `type`, `value`. When **creating**, omit the `id` (Homey assigns a new one). When you need to update by the same ID, use `PUT /api/manager/logic/variable/<id>`.
+The variable JSON in your backup contains `id`, `name`, `type`, `value`. When **creating**, omit the `id` (Homey assigns a new one). When you need to update by the same ID, use `PUT /api/manager/logic/variable/<id>` — note this only works in **partial restores** (no factory reset) where the old variable IDs still exist. After a factory reset, old IDs are gone and PUT will return 404; use POST instead.
 
 **BLL variables:**
 ```bash
@@ -149,6 +149,23 @@ curl -X PUT "$HOMEY_API_URL/api/app/net.i-dev.betterlogic/variable/VariableName"
 Or set them via the BLL app settings page in the Homey app.
 
 > **Note:** Logic variable UUIDs will change when re-created. Flows that condition on variables by UUID will need to be checked after import. However, BLL variables are referenced by **name** not UUID, so BLL-based flow conditions survive re-creation cleanly.
+
+**Geolocation (optional):**
+Your backup contains `geolocation.json` with home latitude, longitude, and address. To restore via API:
+```bash
+# Restore location coordinates
+curl -X PUT "$HOMEY_API_URL/api/manager/geolocation/state" \
+  -H "Authorization: Bearer $HOMEY_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"latitude": <lat>, "longitude": <lon>}'
+
+# Restore address string
+curl -X PUT "$HOMEY_API_URL/option/address" \
+  -H "Authorization: Bearer $HOMEY_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '"Your Home Address"'
+```
+Use the values from `geolocation.json` in your backup. Restoring geolocation ensures sunrise/sunset triggers fire at the correct times.
 
 ---
 
@@ -233,6 +250,8 @@ Before importing flows (Step 7), update each flow JSON's `"folder"` field from t
 2. Click the ⋮ menu → *Import flow*
 3. Paste the JSON (use `restore.py` to copy it to clipboard — Linux: xsel/xclip; macOS: pbcopy; Windows: clip.exe)
 
+> **Identifying flow type:** Open the backup JSON and look for `"flow_type": "advanced"`. If the field is absent or set to `"normal"`, use the `/flow/flow` endpoint. `restore.py` detects this automatically.
+
 **Via REST API (bulk):**
 ```bash
 # Normal flow
@@ -249,6 +268,8 @@ curl -X POST "$HOMEY_API_URL/api/manager/flow/advancedflow" \
 ```
 
 > **Strip the `id` field** from the JSON body when creating new flows — Homey assigns a new ID. Update the `folder` field using your old→new folder UUID mapping from Step 6 (or strip it entirely to place flows in root and organise manually).
+>
+> **Note:** `restore.py` copies the **raw backup JSON** to your clipboard, including the original `id` and `folder` fields. If using curl, strip the `id` and update the `folder` UUID before pasting. The Homey web app import dialog handles `id` stripping automatically.
 
 After importing, expect to see flows marked with a **red broken indicator** for any that reference re-paired devices. That is normal and expected — you fix them in Step 8.
 
@@ -278,6 +299,12 @@ For each broken flow:
 - Spot-check the Homey Insights timeline for any execution errors
 - Test physical devices (lights, locks, sensors) via the Homey app to confirm pairing succeeded
 - Verify scheduled flows (cron triggers) fire at the expected times
+
+### Step 10 — Rebuild Dashboards
+
+Dashboard layouts cannot be restored via the API — there is no POST endpoint for dashboards. Your backup in `dashboards/` is a **reference only**.
+
+Open the Homey app → Dashboards and rebuild your home screen layout manually using the backed-up JSON as a guide for which tiles and widgets you had configured.
 
 ---
 
