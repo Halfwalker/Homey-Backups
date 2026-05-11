@@ -172,11 +172,11 @@ def main() -> None:
             print(f"  ✗ Bad JSON: {fpath} ({exc})", file=sys.stderr)
             continue
 
-        print(f"  → {flow.get('name', p.stem)}")
-
         if args.filter and args.filter.lower() not in flow.get("name", "").lower():
             print(f"  ⏭  Skipped (filter): {flow.get('name', p.name)}")
             continue
+
+        print(f"  → {flow.get('name', p.stem)}")
 
         if args.output:
             out = args.output

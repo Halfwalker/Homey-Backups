@@ -192,7 +192,8 @@ def render_flow(
     cap_titles: "dict[str, dict[str, tuple[str, str]]] | None" = None,
     to_png: bool = False,
     folder_lookup: dict[str, str] | None = None,
-) -> None:
+    verbose: bool = True,
+) -> "Path | None":
     """Render a single Homey flow as an SVG file.
 
     Dispatches based on flow type:
@@ -211,9 +212,16 @@ def render_flow(
         to_png: If True, output PNG via cairosvg instead of SVG (requires cairosvg).
     """
     cards: dict[str, dict] = flow.get("cards", {})
+    if not isinstance(cards, dict):
+        print(
+            f"  ⚠ Flow '{flow.get('name', '?')}' has malformed 'cards' field "
+            f"(expected dict, got {type(cards).__name__}), skipping.",
+            file=sys.stderr,
+        )
+        return None
     if not cards:
         if flow.get("trigger") or flow.get("conditions") or flow.get("actions"):
-            render_standard_flow(flow, output_path, device_lookup, var_lookup, zone_lookup, cap_titles, to_png, folder_lookup)
+            render_standard_flow(flow, output_path, device_lookup, var_lookup, zone_lookup, cap_titles, to_png, folder_lookup, verbose)
             return
         print("  ⚠ No cards in flow, skipping.", file=sys.stderr)
         return
@@ -495,8 +503,10 @@ def render_flow(
     # Summary
     n = len(cards)
     types = sorted(set(c["type"] for c in cards.values()))
-    print(f"  ✓ {written}  ({canvas_w:.0f}×{canvas_h:.0f}px, "
-          f"{n} cards [{', '.join(types)}])")
+    if verbose:
+        print(f"  ✓ {written}  ({canvas_w:.0f}×{canvas_h:.0f}px, "
+              f"{n} cards [{', '.join(types)}])")
+    return written
 
 
 def render_standard_flow(
@@ -508,7 +518,8 @@ def render_standard_flow(
     cap_titles: "dict[str, dict[str, tuple[str, str]]] | None" = None,
     to_png: bool = False,
     folder_lookup: dict[str, str] | None = None,
-) -> None:
+    verbose: bool = True,
+) -> "Path | None":
     """Render a standard (non-advanced) Homey flow as a 2-column SVG."""
     SVG_W = 640
     LABEL_X = 16
@@ -661,4 +672,6 @@ def render_standard_flow(
 
     written = _write_output(svg.render(), Path(output_path), to_png)
     n_cards = (1 if trigger_card else 0) + len(condition_cards) + len(action_cards)
-    print(f"  ✓ {written}  ({canvas_w}×{svg_h:.0f}px, {n_cards} cards [standard flow])")
+    if verbose:
+        print(f"  ✓ {written}  ({canvas_w}×{svg_h:.0f}px, {n_cards} cards [standard flow])")
+    return written
