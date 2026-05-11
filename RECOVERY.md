@@ -100,7 +100,8 @@ curl -X POST "$HOMEY_API_URL/api/manager/zones/zone" \
   -d '{"name": "Living Room", "parent": null, "icon": "living_room"}'
 ```
 
-Or use `restore.py` to browse, copy JSON to clipboard, then paste into developer.homey.app:
+Or use `restore.py` to browse, copy JSON to clipboard, then paste into developer.homey.app
+(clipboard support: Linux via xsel/xclip, macOS via pbcopy, Windows via clip.exe):
 ```bash
 uv run restore.py
 # Choose: Zone → select backup date → select zone → copy to clipboard
@@ -196,7 +197,7 @@ Before importing flows (Step 7), update each flow JSON's `"folder"` field from t
 **Via the Homey web app (easiest, one at a time):**
 1. Go to [my.homey.app](https://my.homey.app) → Flows
 2. Click the ⋮ menu → *Import flow*
-3. Paste the JSON (use `restore.py` to copy it to clipboard)
+3. Paste the JSON (use `restore.py` to copy it to clipboard — Linux: xsel/xclip; macOS: pbcopy; Windows: clip.exe)
 
 **Via REST API (bulk):**
 ```bash

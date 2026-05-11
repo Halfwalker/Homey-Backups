@@ -39,10 +39,13 @@ except ImportError:
 import shutil
 import subprocess as _sp
 
-# Prefer xsel (proper setsid daemonisation) over xclip.
+# Detection order: xsel (Linux, best setsid behaviour) → xclip (Linux fallback)
+# → pbcopy (macOS native) → clip (Windows native).
 _CLIPBOARD_CMD: list[str] | None = (
     ["xsel", "--clipboard", "--input"] if shutil.which("xsel")
     else ["xclip", "-selection", "clipboard"] if shutil.which("xclip")
+    else ["pbcopy"] if shutil.which("pbcopy")
+    else ["clip"] if shutil.which("clip")
     else None
 )
 _CLIPBOARD_AVAILABLE = _CLIPBOARD_CMD is not None
@@ -286,9 +289,11 @@ def _copy_to_clipboard(text: str) -> bool:
     """
     Copy *text* to the system clipboard.
 
-    Uses xsel/xclip directly with ``start_new_session=True`` so the
-    clipboard tool survives after this process exits (X11 selections
-    require the owning process to stay alive to serve paste requests).
+    Supports xsel/xclip (Linux), pbcopy (macOS), and clip (Windows).
+    Uses ``start_new_session=True`` so Linux clipboard tools (xsel/xclip)
+    survive after this process exits — X11 selections require the owning
+    process to remain alive; setsid detaches it. Native macOS/Windows tools
+    are synchronous and do not require this.
 
     Returns True on success, False if clipboard is unavailable.
     """
@@ -424,7 +429,7 @@ def _present_item(item: dict, category: str) -> None:
 
     copy_choices = ["Yes, copy JSON to clipboard", "No thanks"]
     if not _CLIPBOARD_AVAILABLE:
-        copy_choices = ["No thanks (xsel/xclip not found — install one to enable clipboard)"]
+        copy_choices = ["No thanks (no clipboard tool found — install xsel/xclip on Linux; pbcopy/clip should be detected automatically on macOS/Windows)"]
 
     copy_answer = inquirer.prompt(
         [
