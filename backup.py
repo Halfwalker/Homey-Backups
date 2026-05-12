@@ -31,7 +31,7 @@ from collections.abc import Callable
 from slugify import slugify
 import datetime
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 
 
 

@@ -8,6 +8,27 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.3.3] — 2026-05-11
+
+Code quality and test coverage improvements for the render_flows package.
+
+### Fixed
+- `render_flows/_svg_builder.py`: SVG attribute values now escaped with `html.escape()` — prevents injecting unescaped `<`, `>`, `&` from device or flow names
+- `render_flows/_cli.py`: `--filter` no longer prints `→ FlowName` before the "Skipped" message — progress line now only appears for flows that pass the filter
+- `render_flows/_renderers.py`: `render_flow()` now guards the `cards` field type — warns and returns `None` if `cards` is a list instead of a dict, rather than crashing
+
+### Changed
+- `render_flows/_renderers.py`: `render_flow()` and `render_standard_flow()` now accept a `verbose=True` parameter — pass `False` to suppress the `✓ … cards` summary line when using these functions as a library
+- `render_flows/_renderers.py`: `render_flow()` and `render_standard_flow()` now return `Path | None` (the written output path) instead of `None`
+
+### Tests
+- `tests/test_svg_critical.py`: 3 new tests covering previously untested paths: `_write_output()` `SystemExit` when cairosvg is missing, `_auto_discover_sibling()` non-timestamp dir rejection, and `render_flow()` write permission error propagation
+
+### Docs
+- `README.md`: `geolocation.json` flagged as sensitive — contains home latitude, longitude and address; added privacy note advising against committing `Backups/` to a public repository
+
+---
+
 ## [0.3.2] — 2026-05-11
 
 Oracle-reviewed quality pass: clipboard fix, doc gaps, test coverage, and code cleanup.

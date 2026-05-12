@@ -1,6 +1,6 @@
 [project]
 name = "homey-backups"
-version = "0.3.2"
+version = "0.3.3"
 description = "Backup, restore, and visualise Homey Pro devices, flows, zones and variables"
 requires-python = ">=3.11"
 dependencies = [
