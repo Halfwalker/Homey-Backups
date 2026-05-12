@@ -88,7 +88,7 @@ class SVGBuilder:
         self._body.append("</g>")
 
     def comment(self, msg: str) -> None:
-        self._body.append(f"<!-- {msg} -->")
+        self._body.append(f"<!-- {msg.replace('--', '\u2014')} -->")
 
     def render(self) -> str:
         defs = "\n    ".join(self._defs)

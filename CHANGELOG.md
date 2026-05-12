@@ -8,6 +8,24 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.3.6] — 2026-05-12
+
+### Fixed
+- `render_flows/_renderers.py`: `render_flow()` was calling `render_standard_flow()` then bare `return`, discarding the `Path` it returns. Any caller relying on the return value for standard flows received `None` despite a successful render. Fixed to `return render_standard_flow(...)`.
+- `render_flows/_label_parser.py`: delay card multiplier used `int(d.get("multiplier", 1))`. When the Homey API returns `null` for the multiplier key, `d.get()` returns `None` (key exists, value is null) and `int(None)` raises `TypeError`. Fixed to `int(d.get("multiplier") or 1)`.
+- `render_flows/_svg_builder.py`: `SVGBuilder.comment()` did not escape `--` in the message body. XML/SVG comments containing `--` produce malformed XML. Fixed by replacing `--` with an em-dash before embedding.
+- `restore.py`: date picker was presenting oldest backups first because `list_backup_dates()` already sorts newest-first and the call site applied `reversed()` on top, double-inverting the order. Removed the `reversed()` call so the most recent backup appears at the top of the picker.
+- `restore.py`: advanced-flow import instructions were derived at runtime by string-replacing the normal-flow entry with hardcoded search strings. If those strings drifted, replacements would silently produce wrong instructions. Replaced with a dedicated `IMPORT_INSTRUCTIONS["advanced_flow"]` entry.
+- `backup.py`: updated `--force` description — flag merges into an existing directory (stale files are kept); warning message updated to say "Merging" instead of "Overwriting".
+
+### Added
+- `backup.py`: `--clean` flag — removes and recreates the target backup directory before backing up, ensuring no stale files from a previous run survive. Only acts when the directory contains a `manifest.json` (safety guard against accidental deletion).
+
+### Tests
+- `tests/test_pure_functions.py`: `TestWordWrap` assertion used a hardcoded literal `15` instead of the `max_chars` parameter (`10`), silently allowing lines 50% over the limit. Extracted `max_chars` as a variable and tightened the assertion to `<= max_chars`.
+
+---
+
 ## [0.3.5] — 2026-05-12
 
 Correctness and reliability fixes from the v0.3.4 deep review (oracle + council).

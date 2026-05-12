@@ -221,8 +221,7 @@ def render_flow(
         return None
     if not cards:
         if flow.get("trigger") or flow.get("conditions") or flow.get("actions"):
-            render_standard_flow(flow, output_path, device_lookup, var_lookup, zone_lookup, cap_titles, to_png, folder_lookup, verbose)
-            return
+            return render_standard_flow(flow, output_path, device_lookup, var_lookup, zone_lookup, cap_titles, to_png, folder_lookup, verbose)
         print("  ⚠ No cards in flow, skipping.", file=sys.stderr)
         return
 

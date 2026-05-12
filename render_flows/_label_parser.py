@@ -191,7 +191,7 @@ def _parse_label(
     if ctype == "delay":
         d = (card.get("args") or {}).get("delay", {})
         n = d.get("number", "?")
-        m = int(d.get("multiplier", 1))
+        m = int(d.get("multiplier") or 1)
         unit = {1: "sec", 60: "min", 3600: "hr"}.get(m, f"×{m}s")
         return f"Delay {n} {unit}"
     if ctype == "any":

@@ -20,6 +20,7 @@ This script is intended to be run with [uv](https://github.com/astral-sh/uv):
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -32,7 +33,7 @@ from collections.abc import Callable
 from slugify import slugify
 import datetime
 
-__version__ = "0.3.5"
+__version__ = "0.3.6"
 
 
 
@@ -305,7 +306,7 @@ def _backup_items(
             result.note = "already exists — use --force to overwrite"
             return result
         else:
-            print(f"[WARN] Overwriting existing backup directory: {output_dir}", file=sys.stderr)
+            print(f"[WARN] Merging into existing backup directory: {output_dir}", file=sys.stderr)
     output_dir.mkdir(parents=True, exist_ok=force)
 
     if not items:
@@ -784,7 +785,17 @@ def main() -> None:
         "--force",
         action="store_true",
         default=False,
-        help="Overwrite an existing backup directory for the same timestamp (use with caution).",
+        help="Merge into an existing backup directory for the same timestamp (keeps stale files).",
+    )
+    ap.add_argument(
+        "--clean",
+        action="store_true",
+        default=False,
+        help=(
+            "Remove and recreate an existing backup directory before backing up. "
+            "Only acts on directories that contain a manifest.json (safety guard). "
+            "Use instead of --force when you want a clean snapshot with no stale files."
+        ),
     )
     ap.add_argument(
         "--render-svg",
@@ -837,6 +848,18 @@ def main() -> None:
     now_str = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
     base = pathlib.Path(__file__).parent
     backup_root = base / "Backups" / now_str
+
+    if args.clean:
+        if backup_root.exists():
+            if not (backup_root / "manifest.json").exists():
+                print(
+                    f"[ERROR] --clean: {backup_root} exists but has no manifest.json. "
+                    "Refusing to delete a directory that doesn't look like a backup.",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            print(f"[INFO] --clean: removing existing backup directory: {backup_root}", file=sys.stderr)
+            shutil.rmtree(backup_root)
 
     # NOTE: Directory names below must stay in sync with CATEGORY_SUBDIRS in restore.py.
     # Single-file backups (meta.json, geolocation.json) are not in CATEGORY_SUBDIRS.

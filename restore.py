@@ -50,7 +50,7 @@ _CLIPBOARD_CMD: list[str] | None = (
 )
 _CLIPBOARD_AVAILABLE = _CLIPBOARD_CMD is not None
 
-__version__ = "0.3.5"
+__version__ = "0.3.6"
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -125,6 +125,24 @@ IMPORT_INSTRUCTIONS: dict[str, str] = {
             1. Open https://developer.homey.app/ → your Homey → Flows
             2. Use the REST endpoint:
                  POST /api/manager/flow/flow
+               with the flow JSON as the request body.
+
+          Note: Strip the "id" and "folder" fields from the JSON body when
+          creating new flows. If restoring into folders, restore flow_folders
+          first and update the "folder" field to the new folder ID.
+        ──────────────────────────────────────────────────────────────────────"""),
+
+    "advanced_flow": textwrap.dedent("""\
+        ── How to re-import an ADVANCED FLOW into Homey ─────────────────────
+          Option A — Homey Web App (easiest):
+            1. Go to https://my.homey.app → Flows
+            2. Click the  ⋮  menu → "Import flow"
+            3. Paste the JSON from your clipboard (or upload the .json file).
+
+          Option B — Homey Developer Tools:
+            1. Open https://developer.homey.app/ → your Homey → Flows
+            2. Use the REST endpoint:
+                 POST /api/manager/flow/advancedflow
                with the flow JSON as the request body.
 
           Note: Strip the "id" and "folder" fields from the JSON body when
@@ -456,14 +474,7 @@ def _present_item(item: dict, category: str) -> None:
     print()
     # For flows, pick endpoint based on flow_type
     if category == "flow" and item["data"].get("flow_type") == "advanced":
-        instructions = IMPORT_INSTRUCTIONS["flow"].replace(
-            "POST /api/manager/flow/flow",
-            "POST /api/manager/flow/advancedflow",
-        ).replace(
-            "── How to re-import a FLOW into Homey ────────────────────────────────",
-            "── How to re-import an ADVANCED FLOW into Homey ─────────────────────",
-        )
-        print(instructions)
+        print(IMPORT_INSTRUCTIONS["advanced_flow"])
     else:
         print(IMPORT_INSTRUCTIONS[category])
 
@@ -509,7 +520,7 @@ def main() -> None:
                 sys.exit(0)
             continue
 
-        date_choices = [(d.parent.name, d) for d in reversed(date_dirs)]
+        date_choices = [(d.parent.name, d) for d in date_dirs]
         date_answer = inquirer.prompt(
             [
                 inquirer.List(

@@ -149,10 +149,11 @@ class TestWordWrap:
 
     def test_text_longer_than_max_splits_at_word_boundary(self):
         text = "one two three four five six seven"
-        result = _word_wrap(text, 10)
+        max_chars = 10
+        result = _word_wrap(text, max_chars)
         # Every line must be ≤ max_chars (except single words longer than limit)
         for line in result:
-            assert len(line) <= 15, f"Line too long: {line!r}"
+            assert len(line) <= max_chars or len(line.split()) == 1, f"Line too long: {line!r}"
         # Joined result should contain all words
         assert " ".join(result).replace("  ", " ") == text
 

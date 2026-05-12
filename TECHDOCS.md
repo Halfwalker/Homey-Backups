@@ -146,7 +146,7 @@ All `backup_*` functions for list-based categories (`backup_devices`, `backup_fl
 
 - Missing env vars (`HOMEY_API_URL`, `HOMEY_API_TOKEN`) → `sys.exit(1)` with message
 - Connection error / timeout / non-200 response → `HomeyAPIError` raised; caught by each `backup_*` function and recorded in `BackupResult.error_details`; backup continues to next category
-- Backup directory already exists → error recorded in `BackupResult` and returned (no `sys.exit`); pass `--force` to overwrite
+- Backup directory already exists → error recorded in `BackupResult` and returned (no `sys.exit`); pass `--force` to merge in place, or `--clean` to wipe and recreate (only when `manifest.json` is present in the target directory)
 - `--throttle SECONDS` (default `0`) — sleeps between each of the 10 backup category calls; useful when rapid sequential API calls overload the Homey hub
 - Individual file write failure → logged to `BackupResult.error_details`, script continues
 - Items without an ID → skipped with warning
@@ -191,7 +191,7 @@ Common errors and fixes:
 | `HTTP 401` | Token expired or wrong | Generate a new PAT in the Homey app |
 | `HTTP 404` on BLL endpoint | Better Logic Library app not installed | Expected — BLL backup will report `0 saved`, which is fine |
 | `Cannot connect` / timeout | Wrong IP or machine not on the same LAN | Verify `HOMEY_API_URL`; check both devices are on the same subnet |
-| `Backup directory already exists` | Script ran twice in the same minute | Delete the directory, wait one minute, or re-run with `--force` to overwrite |
+| `Backup directory already exists` | Script ran twice in the same minute | Delete the directory, wait one minute, re-run with `--force` to merge in place, or `--clean` for a fresh snapshot |
 | Category shows `0 saved` | Token lacks permission for that category | Re-generate token and grant all permissions |
 
 ---

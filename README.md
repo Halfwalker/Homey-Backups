@@ -139,13 +139,14 @@ Backups/2026-04-26_14-05/flows/goodnight-f6417ce9-e7e0-4571-a3f7-87895a0e93e0.js
 
 BLL (Better Logic) variables use a different convention: `bll-<variable-name>.json` (no UUID suffix — BLL variables are identified by name, not ID).
 
-Each backup run creates a new timestamped directory (`YYYY-MM-DD_HH-MM`). If the directory already exists, the script exits with an error to prevent overwriting. Pass `--force` to overwrite an existing directory for the same timestamp instead of aborting.
+Each backup run creates a new timestamped directory (`YYYY-MM-DD_HH-MM`). If the directory already exists, the script exits with an error to prevent overwriting. Pass `--force` to merge into an existing directory for the same timestamp (stale files from a previous run are kept). Pass `--clean` for a fresh snapshot — it removes and recreates the directory before backing up (only acts on directories that already contain a `manifest.json` as a safety guard).
 
 #### CLI flags
 
 | Flag | Description |
 |---|---|
-| `--force` | Overwrite an existing backup directory for the same timestamp (default: abort if directory exists) |
+| `--force` | Merge into an existing backup directory for the same timestamp (stale files from previous runs are kept; default: abort if directory exists) |
+| `--clean` | Remove and recreate an existing backup directory before backing up — ensures no stale files survive. Only acts when the target directory contains a `manifest.json` (safety guard). |
 | `--render-svg` | After backup, render all flow diagrams as SVG files alongside the flow JSON (invokes `render_flows.py`) |
 | `--render-png` | After backup, render all flow diagrams as PNG images — requires `cairosvg` (invokes `render_flows.py --png`) |
 | `--throttle SECONDS` | Sleep SECONDS between backup categories (default: 0). Use when Homey Pro seems overloaded by rapid sequential API calls |
@@ -403,6 +404,6 @@ Matrix: **Python 3.11**, **Python 3.12**, and **Python 3.13** (all must pass).
 | Clipboard copy fails (Linux) | `sudo apt install xsel` (preferred) or `sudo apt install xclip` |
 | Clipboard copy fails (macOS) | `pbcopy` is auto-detected — should work out of the box; if not, check that `/usr/bin/pbcopy` exists |
 | Clipboard copy fails (Windows) | `clip.exe` is auto-detected — should work out of the box; if not, check that `clip` is on your PATH |
-| Backup directory already exists | Each backup run needs a unique timestamp — wait a minute, delete the existing directory, or re-run with `--force` to overwrite it |
+| Backup directory already exists | Each backup run needs a unique timestamp — wait a minute, delete the existing directory, or re-run with `--force` to merge in place, or `--clean` for a fresh snapshot |
 | SVG shows `[var:041893df]` | Run `backup.py` first to create a `Backups/TIMESTAMP/variables/` backup; the renderer auto-discovers it |
 | Flows restored but show as broken | Flow references old device UUID — re-pair the device and update the flow card; see [RECOVERY.md](./RECOVERY.md) |
