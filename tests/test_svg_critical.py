@@ -6,6 +6,7 @@ Run:  pytest tests/test_svg_critical.py -v
 import json
 import pathlib
 import sys
+import pytest
 import render_flows
 
 
@@ -170,6 +171,23 @@ class TestAutoDiscoverSibling:
         import render_flows
 
         result = render_flows._lookups._auto_discover_sibling([], "devices")
+
+        assert result is None
+
+    def test_returns_none_when_grandparent_has_no_underscore(self, tmp_path):
+        """Returns None when parent is 'flows' but grandparent name has no '_' (not a timestamp dir)."""
+        import render_flows
+
+        # e.g. /some/path/backup/flows/file.json — "backup" has no underscore
+        non_ts_dir = tmp_path / "backup"
+        flows_dir = non_ts_dir / "flows"
+        flows_dir.mkdir(parents=True)
+        # Create the sibling too — to prove it's the name check, not absence, that blocks
+        (non_ts_dir / "devices").mkdir()
+        flow_file = flows_dir / "my-flow.json"
+        flow_file.write_text("{}")
+
+        result = render_flows._lookups._auto_discover_sibling([str(flow_file)], "devices")
 
         assert result is None
 
@@ -392,3 +410,57 @@ class TestSVGRenderIntegration:
         assert svg_path.exists()
         content = svg_path.read_text(encoding="utf-8")
         assert "DISABLED" in content, "DISABLED badge missing from disabled flow SVG"
+
+
+# ── TestWriteOutputPNG ───────────────────────────────────────────────────
+
+
+class TestWriteOutputPNG:
+    """_write_output() must exit clearly when cairosvg is absent and PNG is requested."""
+
+    def test_raises_system_exit_when_cairosvg_missing(self, tmp_path, monkeypatch):
+        """Raises SystemExit with a message about --png requires cairosvg when _cairosvg is None."""
+        import render_flows._renderers
+
+        monkeypatch.setattr("render_flows._renderers._cairosvg", None)
+
+        with pytest.raises(SystemExit) as exc_info:
+            render_flows._renderers._write_output("svg content", tmp_path / "out.svg", to_png=True)
+
+        assert exc_info.value.code is not None
+        assert "cairosvg" in str(exc_info.value.code).lower()
+
+
+# ── TestRenderFlowWriteError ─────────────────────────────────────────────
+
+_LOCKED_FLOW = {
+    "id": "flow-1",
+    "name": "Test Flow",
+    "enabled": True,
+    "flow_type": "advanced",
+    "cards": {
+        "card-1": {
+            "type": "trigger",
+            "id": "homey:device:abc:alarm_motion",
+            "x": 100, "y": 100,
+            "outputSuccess": [],
+        }
+    },
+}
+
+
+class TestRenderFlowWriteError:
+    """render_flow() must propagate OS-level write errors."""
+
+    def test_raises_on_unwritable_output_dir(self, tmp_path):
+        """Raises PermissionError or OSError when the output directory is not writable."""
+        import render_flows._renderers
+
+        out_dir = tmp_path / "locked"
+        out_dir.mkdir()
+        out_dir.chmod(0o444)
+        try:
+            with pytest.raises((PermissionError, OSError)):
+                render_flows._renderers.render_flow(_LOCKED_FLOW, str(out_dir / "out.svg"))
+        finally:
+            out_dir.chmod(0o755)

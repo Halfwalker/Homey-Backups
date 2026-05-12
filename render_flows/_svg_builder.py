@@ -31,7 +31,7 @@ class SVGBuilder:
             if v is None:
                 continue
             attr = k.replace("_", "-")
-            parts.append(f'{attr}="{v}"')
+            parts.append(f'{attr}="{html.escape(str(v))}"')
         return " ".join(parts)
 
     def add_def(self, raw_xml: str) -> None:

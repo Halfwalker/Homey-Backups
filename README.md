@@ -117,7 +117,7 @@ Connects directly to the Homey Pro local REST API, fetches devices, flows, zones
 | Dashboards | `/api/manager/dashboards/dashboard` | `Backups/TIMESTAMP/dashboards/` |
 | Light Scenes | `/api/manager/moods/mood` | `Backups/TIMESTAMP/moods/` |
 | System Info | `/api/manager/system/state` | `Backups/TIMESTAMP/meta.json` |
-| Geolocation | `/api/manager/geolocation/state` + `/option/location` + `/option/address` | `Backups/TIMESTAMP/geolocation.json` |
+| Geolocation ⚠️ | `/api/manager/geolocation/state` + `/option/location` + `/option/address` | `Backups/TIMESTAMP/geolocation.json` — contains home latitude, longitude and address |
 
 > **⚠️ What is NOT backed up**
 >
@@ -128,6 +128,8 @@ Connects directly to the Homey Pro local REST API, fetches devices, flows, zones
 > - Homey cloud backup history
 >
 > For full disaster recovery, combine this toolchain with **Homey's own cloud backup** (Homey app → Settings → Backup).
+
+> **🔒 Privacy note**: `geolocation.json` contains your home's latitude, longitude and street address. Treat your `Backups/` directory accordingly — do not commit it to a public repository or share it with untrusted parties.
 
 Files are named `<slugified-name>-<id>.json`, e.g.:
 
@@ -330,7 +332,7 @@ Homey_Backups/
         ├── moods/           ← one JSON per light scene
         ├── variables/       ← one JSON per variable
         ├── zones/           ← one JSON per zone
-        ├── geolocation.json ← home location config (lat/lon, address, mode)
+        ├── geolocation.json ← home location config (lat/lon, address, mode) ⚠️ contains sensitive location data
         └── meta.json        ← system info snapshot
 ```
 
