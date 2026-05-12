@@ -32,7 +32,7 @@ from collections.abc import Callable
 from slugify import slugify
 import datetime
 
-__version__ = "0.3.4"
+__version__ = "0.3.5"
 
 
 
@@ -128,7 +128,10 @@ class HomeyAPI:
         if resp.status_code != 200:
             raise HomeyAPIError(f"Homey API returned HTTP {resp.status_code} for {url}")
 
-        return resp.json()
+        try:
+            return resp.json()
+        except ValueError as exc:
+            raise HomeyAPIError(f"Invalid JSON in response from {url}: {exc}") from exc
 
     def get_devices(self) -> list[dict]:
         """Return all devices as a flat list (with id injected)."""
@@ -160,7 +163,11 @@ class HomeyAPI:
         if resp.status_code != 200:
             print(f"  ✗  [WARN] HTTP {resp.status_code} for advanced flow {flow_id}")
             return None
-        data = resp.json()
+        try:
+            data = resp.json()
+        except ValueError:
+            print(f"  ✗  [WARN] Invalid JSON in response for advanced flow {flow_id}")
+            return None
         data["id"] = flow_id
         return data
 
@@ -192,7 +199,10 @@ class HomeyAPI:
             return []
         if resp.status_code != 200:
             return []
-        data = resp.json()
+        try:
+            data = resp.json()
+        except ValueError:
+            return []
         if isinstance(data, list):
             return data
         if isinstance(data, dict):
@@ -367,15 +377,28 @@ def backup_devices(api: HomeyAPI, output_dir: pathlib.Path, force: bool = False)
 
 def backup_flows(api: HomeyAPI, output_dir: pathlib.Path, force: bool = False) -> BackupResult:
     """Fetch all normal and advanced flows and save each as a JSON file."""
+    normal: list[dict] = []
+    advanced: list[dict] = []
+    partial_errors: list[str] = []
+
     try:
         normal = api.get_flows()
+    except HomeyAPIError as exc:
+        partial_errors.append(f"Normal flows: {exc}")
+        print(f"[ERROR] {exc}", file=sys.stderr)
+
+    try:
         advanced = api.get_advanced_flows()
     except HomeyAPIError as exc:
-        result = BackupResult(category="Flows")
-        result.errors += 1
-        result.error_details.append(str(exc))
-        result.note = "API call failed"
+        partial_errors.append(f"Advanced flows: {exc}")
         print(f"[ERROR] {exc}", file=sys.stderr)
+
+    if partial_errors and not normal and not advanced:
+        # Both fetches failed — nothing to save
+        result = BackupResult(category="Flows")
+        result.errors += len(partial_errors)
+        result.error_details.extend(partial_errors)
+        result.note = "API call failed"
         return result
 
     for flow in normal:
@@ -841,6 +864,9 @@ def main() -> None:
         _render_flows(backup_root / "flows", png=args.render_png)
 
     _write_manifest(results, backup_root, now_str, __version__)
+
+    if any(r.errors for r in results):
+        sys.exit(1)
 
 
 if __name__ == "__main__":

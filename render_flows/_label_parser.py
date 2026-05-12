@@ -208,6 +208,7 @@ def _parse_label(
         if label:
             label = _resolve_placeholders(label, args)
             label = _resolve_uri_refs(label, var_lookup)
+            label = _resolve_trigger_refs(label, trigger_name_map, trigger_cap_map)
 
         # Prepend device/owner name when available
         owner_uri = rich.get("ownerUri") or ""

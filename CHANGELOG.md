@@ -8,6 +8,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.3.5] — 2026-05-12
+
+Correctness and reliability fixes from the v0.3.4 deep review (oracle + council).
+
+### Fixed
+- `backup.py` `_get()`: `resp.json()` is now wrapped in `try/except ValueError`, raising `HomeyAPIError` on malformed responses; previously a bad JSON response would propagate as an unhandled `ValueError` and abort all remaining backup categories
+- `backup.py` `get_advanced_flow()` and `get_bll_variables()`: same `resp.json()` guard applied
+- `backup.py` `backup_flows()`: normal and advanced flow fetches are now handled by independent `try/except` blocks; previously a failure fetching advanced flows would discard all successfully-fetched normal flows
+- `backup.py` `main()`: exits with code `1` when any backup category has errors (previously always exited `0`, making it impossible for cron/monitoring to detect partial failures)
+- `render_flows/_cli.py`: batch loop now catches exceptions from `render_flow()` and continues to the next file; exits `1` if any flows failed to render; previously an unhandled exception would abort the entire batch
+- `render_flows/_label_parser.py`: rich-format label path now calls `_resolve_trigger_refs()`; previously `[[trigger::CARD_ID::field]]` tokens were left unresolved as raw text in SVG output
+
+### Tests
+- `tests/test_svg_critical.py`: rewrote `test_render_flow_exception_caught_in_cli_batch` to monkeypatch `render_flow` directly in the CLI module and assert `SystemExit(1)`; the previous version tested a failure path handled inside `render_flow` (not the CLI loop), providing false confidence
+
+---
+
 ## [0.3.4] — 2026-05-11
 
 Backup robustness improvements: env-var hygiene, integrity manifest, and inter-category throttle.

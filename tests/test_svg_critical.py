@@ -78,8 +78,9 @@ class TestSVGBatchCritical:
         )
 
     def test_render_flow_exception_caught_in_cli_batch(self, tmp_path, monkeypatch):
-        """The CLI main() batch loop must catch render_flow() exceptions and continue."""
+        """The CLI batch loop catches render_flow() exceptions, continues, and exits 1."""
         import render_flows as svg
+        import render_flows._cli as cli_mod
 
         good_path = tmp_path / "good.json"
         good_path.write_text(json.dumps(SIMPLE_STANDARD_FLOW), encoding="utf-8")
@@ -89,31 +90,40 @@ class TestSVGBatchCritical:
             "id": "bad",
             "name": "Bad Flow",
             "enabled": True,
-            "cards": {"broken-card": {"type": "trigger"}},  # missing x, y
+            "trigger": {"id": "test"},
+            "conditions": [],
+            "actions": [],
         }), encoding="utf-8")
 
         out_dir = tmp_path / "output"
         out_dir.mkdir()
 
-        # Run main() with both flows; should not raise
+        # Patch render_flow in the CLI module to raise for "Bad Flow"
+        # This tests the CLI exception boundary, not internal render_flow filtering.
+        original_render = cli_mod.render_flow
+
+        def patched_render(flow, out, **kwargs):
+            if flow.get("name") == "Bad Flow":
+                raise OSError("Simulated render failure")
+            return original_render(flow, out, **kwargs)
+
+        monkeypatch.setattr(cli_mod, "render_flow", patched_render)
         monkeypatch.setattr(sys, "argv", [
             "render_flows.py",
             str(good_path),
             str(bad_path),
             "-d", str(out_dir),
         ])
-        try:
-            # Should complete without raising SystemExit or unhandled Exception
-            svg.main()
-        except SystemExit as exc:
-            # Only acceptable SystemExit is 0 (success) or argparse help
-            assert exc.code == 0 or exc.code is None, (
-                f"main() exited with code {exc.code} — should continue past bad flows"
-            )
 
-        # Good flow must have rendered
+        with pytest.raises(SystemExit) as exc_info:
+            svg.main()
+        assert exc_info.value.code == 1, (
+            f"CLI should exit 1 when any flow fails to render (got {exc_info.value.code})"
+        )
+
+        # Good flow must have rendered despite the bad one
         assert (out_dir / "good.svg").exists(), (
-            "Good standard flow was not rendered — bad flow should not abort the batch"
+            "Good flow was not rendered — bad flow exception should not abort the batch"
         )
 
 

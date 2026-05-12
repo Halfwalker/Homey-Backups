@@ -160,6 +160,7 @@ def main() -> None:
             file=sys.stderr,
         )
 
+    _error_count = 0
     for fpath in args.inputs:
         p = Path(fpath)
         if not p.exists():
@@ -187,12 +188,19 @@ def main() -> None:
         else:
             out = str(p.with_suffix(".svg"))
 
-        render_flow(
-            flow, out,
-            device_lookup=device_lookup or None,
-            var_lookup=var_lookup or None,
-            zone_lookup=zone_lookup or None,
-            folder_lookup=folder_lookup or None,
-            cap_titles=cap_titles or None,
-            to_png=args.png,
-        )
+        try:
+            render_flow(
+                flow, out,
+                device_lookup=device_lookup or None,
+                var_lookup=var_lookup or None,
+                zone_lookup=zone_lookup or None,
+                folder_lookup=folder_lookup or None,
+                cap_titles=cap_titles or None,
+                to_png=args.png,
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(f"  ✗ Render failed: {p.name} ({exc})", file=sys.stderr)
+            _error_count += 1
+
+    if _error_count:
+        sys.exit(1)
