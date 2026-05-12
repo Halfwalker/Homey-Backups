@@ -69,8 +69,6 @@ class HomeyAPIError(Exception):
 # Configuration
 # ---------------------------------------------------------------------------
 
-HOMEY_API_URL = os.environ.get("HOMEY_API_URL", "").rstrip("/")
-HOMEY_API_TOKEN = os.environ.get("HOMEY_API_TOKEN", "")
 REQUEST_TIMEOUT = 30  # seconds
 
 
@@ -758,6 +756,9 @@ def main() -> None:
         help="After backup, render all flow diagrams as PNG images (requires cairosvg).",
     )
     args = ap.parse_args()
+
+    HOMEY_API_URL = os.environ.get("HOMEY_API_URL", "").rstrip("/")
+    HOMEY_API_TOKEN = os.environ.get("HOMEY_API_TOKEN", "")
 
     if not HOMEY_API_URL:
         print("[ERROR] HOMEY_API_URL environment variable is not set.", file=sys.stderr)

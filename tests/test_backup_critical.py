@@ -337,34 +337,34 @@ def _fake_result():
 class TestMain:
     """Tests for backup.main() covering config validation, all 10 backup categories, and render flags."""
 
-    def test_missing_url_exits_with_code_1(self):
+    def test_missing_url_exits_with_code_1(self, monkeypatch):
         """main() exits with code 1 when HOMEY_API_URL is empty."""
         import backup
-        with patch("sys.argv", ["backup.py"]), \
-             patch("backup.HOMEY_API_URL", ""), \
-             patch("backup.HOMEY_API_TOKEN", "atk_faketoken"):
+        monkeypatch.setenv("HOMEY_API_URL", "")
+        monkeypatch.setenv("HOMEY_API_TOKEN", "atk_faketoken")
+        with patch("sys.argv", ["backup.py"]):
             with pytest.raises(SystemExit) as exc_info:
                 backup.main()
         assert exc_info.value.code == 1
 
-    def test_missing_token_exits_with_code_1(self):
+    def test_missing_token_exits_with_code_1(self, monkeypatch):
         """main() exits with code 1 when HOMEY_API_TOKEN is empty."""
         import backup
-        with patch("sys.argv", ["backup.py"]), \
-             patch("backup.HOMEY_API_URL", "http://192.168.1.1"), \
-             patch("backup.HOMEY_API_TOKEN", ""):
+        monkeypatch.setenv("HOMEY_API_URL", "http://192.168.1.1")
+        monkeypatch.setenv("HOMEY_API_TOKEN", "")
+        with patch("sys.argv", ["backup.py"]):
             with pytest.raises(SystemExit) as exc_info:
                 backup.main()
         assert exc_info.value.code == 1
 
-    def test_invalid_token_format_prints_warning_but_continues(self, capsys):
+    def test_invalid_token_format_prints_warning_but_continues(self, monkeypatch, capsys):
         """main() prints a [WARN] to stderr for an unrecognised token format but does not exit."""
         import backup
+        monkeypatch.setenv("HOMEY_API_URL", "http://192.168.1.1")
+        monkeypatch.setenv("HOMEY_API_TOKEN", "invalid-token")
         fake_result = _fake_result()
         patches = {p: patch(p, return_value=fake_result) for p in _ALL_BACKUP_PATCHES}
         with patch("sys.argv", ["backup.py"]), \
-             patch("backup.HOMEY_API_URL", "http://192.168.1.1"), \
-             patch("backup.HOMEY_API_TOKEN", "invalid-token"), \
              patch("backup.HomeyAPI"), \
              patch("backup.datetime") as mock_dt, \
              patch("backup._print_summary"):
@@ -383,13 +383,13 @@ class TestMain:
         captured = capsys.readouterr()
         assert "[WARN]" in captured.err
 
-    def test_successful_backup_calls_all_10_categories(self):
+    def test_successful_backup_calls_all_10_categories(self, monkeypatch):
         """main() calls all 10 backup_* functions exactly once with valid credentials."""
         import backup
+        monkeypatch.setenv("HOMEY_API_URL", "http://192.168.1.1")
+        monkeypatch.setenv("HOMEY_API_TOKEN", "atk_valid")
         fake_result = _fake_result()
         with patch("sys.argv", ["backup.py"]), \
-             patch("backup.HOMEY_API_URL", "http://192.168.1.1"), \
-             patch("backup.HOMEY_API_TOKEN", "atk_valid"), \
              patch("backup.HomeyAPI"), \
              patch("backup.datetime") as mock_dt, \
              patch("backup.backup_devices", return_value=fake_result) as mock_devices, \
@@ -417,14 +417,14 @@ class TestMain:
         mock_dash.assert_called_once()
         mock_moods.assert_called_once()
 
-    def test_render_svg_flag_calls_render_flows(self):
+    def test_render_svg_flag_calls_render_flows(self, monkeypatch):
         """main() calls _render_flows with png=False when --render-svg is passed."""
         import backup
         from unittest.mock import ANY
+        monkeypatch.setenv("HOMEY_API_URL", "http://192.168.1.1")
+        monkeypatch.setenv("HOMEY_API_TOKEN", "atk_valid")
         fake_result = _fake_result()
         with patch("sys.argv", ["backup.py", "--render-svg"]), \
-             patch("backup.HOMEY_API_URL", "http://192.168.1.1"), \
-             patch("backup.HOMEY_API_TOKEN", "atk_valid"), \
              patch("backup.HomeyAPI"), \
              patch("backup.datetime") as mock_dt, \
              patch("backup.backup_devices", return_value=fake_result), \
@@ -444,14 +444,14 @@ class TestMain:
 
         mock_render.assert_called_once_with(ANY, png=False)
 
-    def test_render_png_flag_calls_render_flows_with_png_true(self):
+    def test_render_png_flag_calls_render_flows_with_png_true(self, monkeypatch):
         """main() calls _render_flows with png=True when --render-png is passed."""
         import backup
         from unittest.mock import ANY
+        monkeypatch.setenv("HOMEY_API_URL", "http://192.168.1.1")
+        monkeypatch.setenv("HOMEY_API_TOKEN", "atk_valid")
         fake_result = _fake_result()
         with patch("sys.argv", ["backup.py", "--render-png"]), \
-             patch("backup.HOMEY_API_URL", "http://192.168.1.1"), \
-             patch("backup.HOMEY_API_TOKEN", "atk_valid"), \
              patch("backup.HomeyAPI"), \
              patch("backup.datetime") as mock_dt, \
              patch("backup.backup_devices", return_value=fake_result), \
@@ -471,13 +471,13 @@ class TestMain:
 
         mock_render.assert_called_once_with(ANY, png=True)
 
-    def test_no_render_flag_does_not_call_render_flows(self):
+    def test_no_render_flag_does_not_call_render_flows(self, monkeypatch):
         """main() does not call _render_flows when no render flag is passed."""
         import backup
+        monkeypatch.setenv("HOMEY_API_URL", "http://192.168.1.1")
+        monkeypatch.setenv("HOMEY_API_TOKEN", "atk_valid")
         fake_result = _fake_result()
         with patch("sys.argv", ["backup.py"]), \
-             patch("backup.HOMEY_API_URL", "http://192.168.1.1"), \
-             patch("backup.HOMEY_API_TOKEN", "atk_valid"), \
              patch("backup.HomeyAPI"), \
              patch("backup.datetime") as mock_dt, \
              patch("backup.backup_devices", return_value=fake_result), \
