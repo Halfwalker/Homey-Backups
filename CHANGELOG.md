@@ -8,6 +8,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.3.4] — 2026-05-11
+
+Backup robustness improvements: env-var hygiene, integrity manifest, and inter-category throttle.
+
+### Refactored
+- `backup.py`: `HOMEY_API_URL` and `HOMEY_API_TOKEN` are now read inside `main()` at call time instead of at module import — enables clean `monkeypatch.setenv()` injection in tests without patching module attributes
+
+### Added
+- `backup.py`: `_write_manifest()` writes `Backups/TIMESTAMP/manifest.json` as the last step in every backup run — contains `schema_version`, `tool_version`, `timestamp`, `completed: true`, and per-category saved/skipped/errors counts; absence of this file indicates a partial or failed backup
+- `backup.py`: `--throttle SECONDS` flag (default `0`) — sleeps between each of the 10 backup categories; useful when rapid sequential API calls overload the Homey hub
+
+### Tests
+- `tests/test_backup_critical.py`: updated 7 `TestMain` tests to use `monkeypatch.setenv()` instead of module attribute patching; added `TestWriteManifest` with 2 unit tests covering manifest structure and file placement; patched `_write_manifest` in the 5 integration-style tests that mock the backup directory
+
+---
+
 ## [0.3.3] — 2026-05-11
 
 Code quality and test coverage improvements for the render_flows package.

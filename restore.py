@@ -50,7 +50,7 @@ _CLIPBOARD_CMD: list[str] | None = (
 )
 _CLIPBOARD_AVAILABLE = _CLIPBOARD_CMD is not None
 
-__version__ = "0.3.3"
+__version__ = "0.3.4"
 
 # ---------------------------------------------------------------------------
 # Paths

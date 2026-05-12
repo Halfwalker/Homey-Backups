@@ -338,4 +338,5 @@ Step 6: Restore Flow Folders    ← build old→new folder UUID mapping
 Step 7: Restore Flows           ← update folder fields using Step 6 mapping
 Step 8: Fix broken flow refs    ← use device UUID mapping from Step 5
 Step 9: Validate                ← trigger flows, check Insights
+Step 10: Rebuild Dashboards     ← API cannot restore layouts; use dashboards/ backup as reference
 ```
