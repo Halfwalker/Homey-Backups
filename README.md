@@ -148,6 +148,7 @@ Each backup run creates a new timestamped directory (`YYYY-MM-DD_HH-MM`). If the
 | `--force` | Overwrite an existing backup directory for the same timestamp (default: abort if directory exists) |
 | `--render-svg` | After backup, render all flow diagrams as SVG files alongside the flow JSON (invokes `render_flows.py`) |
 | `--render-png` | After backup, render all flow diagrams as PNG images — requires `cairosvg` (invokes `render_flows.py --png`) |
+| `--throttle SECONDS` | Sleep SECONDS between backup categories (default: 0). Use when Homey Pro seems overloaded by rapid sequential API calls |
 | `--version` | Print version and exit |
 
 > **Note:** If `HOMEY_API_TOKEN` doesn't look like a Homey PAT (`atk_…`) or a JWT, backup.py prints a non-fatal warning and continues. The backup will still run — the warning is informational only.

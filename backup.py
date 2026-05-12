@@ -22,6 +22,7 @@ import argparse
 import os
 import subprocess
 import sys
+import time
 import json
 import pathlib
 import requests
@@ -774,6 +775,16 @@ def main() -> None:
         default=False,
         help="After backup, render all flow diagrams as PNG images (requires cairosvg).",
     )
+    ap.add_argument(
+        "--throttle",
+        type=float,
+        default=0.0,
+        metavar="SECONDS",
+        help=(
+            "Sleep SECONDS between backup categories (default: 0). "
+            "Use when Homey Pro seems overloaded by rapid sequential API calls."
+        ),
+    )
     args = ap.parse_args()
 
     HOMEY_API_URL = os.environ.get("HOMEY_API_URL", "").rstrip("/")
@@ -804,19 +815,25 @@ def main() -> None:
     base = pathlib.Path(__file__).parent
     backup_root = base / "Backups" / now_str
 
-    results: list[BackupResult] = []
     # NOTE: Directory names below must stay in sync with CATEGORY_SUBDIRS in restore.py.
     # Single-file backups (meta.json, geolocation.json) are not in CATEGORY_SUBDIRS.
-    results.append(backup_devices(api, output_dir=backup_root / "devices", force=args.force))
-    results.append(backup_flows(api, output_dir=backup_root / "flows", force=args.force))
-    results.append(backup_flow_folders(api, output_dir=backup_root / "flow_folders", force=args.force))
-    results.append(backup_zones(api, output_dir=backup_root / "zones", force=args.force))
-    results.append(backup_logic_variables(api, output_dir=backup_root / "variables", force=args.force))
-    results.append(backup_apps(api, output_dir=backup_root / "apps", force=args.force))
-    results.append(backup_system_info(api, output_path=backup_root / "meta.json", force=args.force))
-    results.append(backup_geolocation(api, output_path=backup_root / "geolocation.json", force=args.force))
-    results.append(backup_dashboards(api, output_dir=backup_root / "dashboards", force=args.force))
-    results.append(backup_moods(api, output_dir=backup_root / "moods", force=args.force))
+    _category_fns = [
+        lambda: backup_devices(api, output_dir=backup_root / "devices", force=args.force),
+        lambda: backup_flows(api, output_dir=backup_root / "flows", force=args.force),
+        lambda: backup_flow_folders(api, output_dir=backup_root / "flow_folders", force=args.force),
+        lambda: backup_zones(api, output_dir=backup_root / "zones", force=args.force),
+        lambda: backup_logic_variables(api, output_dir=backup_root / "variables", force=args.force),
+        lambda: backup_apps(api, output_dir=backup_root / "apps", force=args.force),
+        lambda: backup_system_info(api, output_path=backup_root / "meta.json", force=args.force),
+        lambda: backup_geolocation(api, output_path=backup_root / "geolocation.json", force=args.force),
+        lambda: backup_dashboards(api, output_dir=backup_root / "dashboards", force=args.force),
+        lambda: backup_moods(api, output_dir=backup_root / "moods", force=args.force),
+    ]
+    results: list[BackupResult] = []
+    for i, fn in enumerate(_category_fns):
+        if i > 0 and args.throttle > 0:
+            time.sleep(args.throttle)
+        results.append(fn())
 
     _print_summary(results)
 
