@@ -634,6 +634,25 @@ def backup_moods(api: HomeyAPI, output_dir: pathlib.Path, force: bool = False) -
 # Entry point
 # ---------------------------------------------------------------------------
 
+def _write_manifest(results: list[BackupResult], backup_root: pathlib.Path, timestamp: str, tool_version: str) -> None:
+    """Write a manifest.json to backup_root recording category counts and completion status."""
+    manifest = {
+        "schema_version": 1,
+        "tool_version": tool_version,
+        "timestamp": timestamp,
+        "completed": True,
+        "categories": {
+            result.category: {
+                "saved": result.saved,
+                "skipped": result.skipped,
+                "errors": result.errors,
+            }
+            for result in results
+        },
+    }
+    (backup_root / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+
 def _print_summary(results: list[BackupResult]) -> None:
     """Print a formatted summary table of all backup categories."""
     col_cat  = 15   # "Category"
@@ -803,6 +822,8 @@ def main() -> None:
 
     if args.render_svg or args.render_png:
         _render_flows(backup_root / "flows", png=args.render_png)
+
+    _write_manifest(results, backup_root, now_str, __version__)
 
 
 if __name__ == "__main__":

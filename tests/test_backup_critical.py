@@ -367,7 +367,8 @@ class TestMain:
         with patch("sys.argv", ["backup.py"]), \
              patch("backup.HomeyAPI"), \
              patch("backup.datetime") as mock_dt, \
-             patch("backup._print_summary"):
+             patch("backup._print_summary"), \
+             patch("backup._write_manifest"):
             mock_dt.datetime.now.return_value.strftime.return_value = "2026-05-11_00-00"
             with patches["backup.backup_devices"], \
                  patches["backup.backup_flows"], \
@@ -402,7 +403,8 @@ class TestMain:
              patch("backup.backup_geolocation", return_value=fake_result) as mock_geo, \
              patch("backup.backup_dashboards", return_value=fake_result) as mock_dash, \
              patch("backup.backup_moods", return_value=fake_result) as mock_moods, \
-             patch("backup._print_summary"):
+             patch("backup._print_summary"), \
+             patch("backup._write_manifest"):
             mock_dt.datetime.now.return_value.strftime.return_value = "2026-05-11_00-00"
             backup.main()
 
@@ -438,6 +440,7 @@ class TestMain:
              patch("backup.backup_dashboards", return_value=fake_result), \
              patch("backup.backup_moods", return_value=fake_result), \
              patch("backup._print_summary"), \
+             patch("backup._write_manifest"), \
              patch("backup._render_flows") as mock_render:
             mock_dt.datetime.now.return_value.strftime.return_value = "2026-05-11_00-00"
             backup.main()
@@ -465,6 +468,7 @@ class TestMain:
              patch("backup.backup_dashboards", return_value=fake_result), \
              patch("backup.backup_moods", return_value=fake_result), \
              patch("backup._print_summary"), \
+             patch("backup._write_manifest"), \
              patch("backup._render_flows") as mock_render:
             mock_dt.datetime.now.return_value.strftime.return_value = "2026-05-11_00-00"
             backup.main()
@@ -491,8 +495,44 @@ class TestMain:
              patch("backup.backup_dashboards", return_value=fake_result), \
              patch("backup.backup_moods", return_value=fake_result), \
              patch("backup._print_summary"), \
+             patch("backup._write_manifest"), \
              patch("backup._render_flows") as mock_render:
             mock_dt.datetime.now.return_value.strftime.return_value = "2026-05-11_00-00"
             backup.main()
 
         mock_render.assert_not_called()
+
+
+class TestWriteManifest:
+    """_write_manifest() writes a correctly-structured manifest.json."""
+
+    def test_writes_manifest_with_correct_structure(self, tmp_path):
+        """manifest.json is created with expected keys and per-category counts."""
+        import json
+        import backup
+
+        results = [
+            backup.BackupResult(category="Devices", saved=10, skipped=1, errors=0),
+            backup.BackupResult(category="Flows", saved=5, skipped=0, errors=2),
+        ]
+        backup._write_manifest(results, tmp_path, "2026-05-11_00-00", "0.3.4")
+
+        manifest_path = tmp_path / "manifest.json"
+        assert manifest_path.exists(), "manifest.json was not created"
+
+        data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        assert data["schema_version"] == 1
+        assert data["tool_version"] == "0.3.4"
+        assert data["timestamp"] == "2026-05-11_00-00"
+        assert data["completed"] is True
+        assert data["categories"]["Devices"] == {"saved": 10, "skipped": 1, "errors": 0}
+        assert data["categories"]["Flows"] == {"saved": 5, "skipped": 0, "errors": 2}
+
+    def test_creates_file_in_backup_root(self, tmp_path):
+        """manifest.json is written directly into the backup_root directory."""
+        import backup
+
+        backup._write_manifest([], tmp_path, "2026-05-11_12-00", "0.3.4")
+
+        assert (tmp_path / "manifest.json").exists()
+        assert not (tmp_path / "categories" / "manifest.json").exists()
