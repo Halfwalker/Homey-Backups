@@ -147,6 +147,7 @@ All `backup_*` functions for list-based categories (`backup_devices`, `backup_fl
 - Missing env vars (`HOMEY_API_URL`, `HOMEY_API_TOKEN`) → `sys.exit(1)` with message
 - Connection error / timeout / non-200 response → `HomeyAPIError` raised; caught by each `backup_*` function and recorded in `BackupResult.error_details`; backup continues to next category
 - Backup directory already exists → error recorded in `BackupResult` and returned (no `sys.exit`); pass `--force` to overwrite
+- `--throttle SECONDS` (default `0`) — sleeps between each of the 10 backup category calls; useful when rapid sequential API calls overload the Homey hub
 - Individual file write failure → logged to `BackupResult.error_details`, script continues
 - Items without an ID → skipped with warning
 

@@ -337,37 +337,38 @@ def _fake_result():
 class TestMain:
     """Tests for backup.main() covering config validation, all 10 backup categories, and render flags."""
 
-    def test_missing_url_exits_with_code_1(self):
+    def test_missing_url_exits_with_code_1(self, monkeypatch):
         """main() exits with code 1 when HOMEY_API_URL is empty."""
         import backup
-        with patch("sys.argv", ["backup.py"]), \
-             patch("backup.HOMEY_API_URL", ""), \
-             patch("backup.HOMEY_API_TOKEN", "atk_faketoken"):
+        monkeypatch.setenv("HOMEY_API_URL", "")
+        monkeypatch.setenv("HOMEY_API_TOKEN", "atk_faketoken")
+        with patch("sys.argv", ["backup.py"]):
             with pytest.raises(SystemExit) as exc_info:
                 backup.main()
         assert exc_info.value.code == 1
 
-    def test_missing_token_exits_with_code_1(self):
+    def test_missing_token_exits_with_code_1(self, monkeypatch):
         """main() exits with code 1 when HOMEY_API_TOKEN is empty."""
         import backup
-        with patch("sys.argv", ["backup.py"]), \
-             patch("backup.HOMEY_API_URL", "http://192.168.1.1"), \
-             patch("backup.HOMEY_API_TOKEN", ""):
+        monkeypatch.setenv("HOMEY_API_URL", "http://192.168.1.1")
+        monkeypatch.setenv("HOMEY_API_TOKEN", "")
+        with patch("sys.argv", ["backup.py"]):
             with pytest.raises(SystemExit) as exc_info:
                 backup.main()
         assert exc_info.value.code == 1
 
-    def test_invalid_token_format_prints_warning_but_continues(self, capsys):
+    def test_invalid_token_format_prints_warning_but_continues(self, monkeypatch, capsys):
         """main() prints a [WARN] to stderr for an unrecognised token format but does not exit."""
         import backup
+        monkeypatch.setenv("HOMEY_API_URL", "http://192.168.1.1")
+        monkeypatch.setenv("HOMEY_API_TOKEN", "invalid-token")
         fake_result = _fake_result()
         patches = {p: patch(p, return_value=fake_result) for p in _ALL_BACKUP_PATCHES}
         with patch("sys.argv", ["backup.py"]), \
-             patch("backup.HOMEY_API_URL", "http://192.168.1.1"), \
-             patch("backup.HOMEY_API_TOKEN", "invalid-token"), \
              patch("backup.HomeyAPI"), \
              patch("backup.datetime") as mock_dt, \
-             patch("backup._print_summary"):
+             patch("backup._print_summary"), \
+             patch("backup._write_manifest"):
             mock_dt.datetime.now.return_value.strftime.return_value = "2026-05-11_00-00"
             with patches["backup.backup_devices"], \
                  patches["backup.backup_flows"], \
@@ -383,13 +384,13 @@ class TestMain:
         captured = capsys.readouterr()
         assert "[WARN]" in captured.err
 
-    def test_successful_backup_calls_all_10_categories(self):
+    def test_successful_backup_calls_all_10_categories(self, monkeypatch):
         """main() calls all 10 backup_* functions exactly once with valid credentials."""
         import backup
+        monkeypatch.setenv("HOMEY_API_URL", "http://192.168.1.1")
+        monkeypatch.setenv("HOMEY_API_TOKEN", "atk_valid")
         fake_result = _fake_result()
         with patch("sys.argv", ["backup.py"]), \
-             patch("backup.HOMEY_API_URL", "http://192.168.1.1"), \
-             patch("backup.HOMEY_API_TOKEN", "atk_valid"), \
              patch("backup.HomeyAPI"), \
              patch("backup.datetime") as mock_dt, \
              patch("backup.backup_devices", return_value=fake_result) as mock_devices, \
@@ -402,7 +403,8 @@ class TestMain:
              patch("backup.backup_geolocation", return_value=fake_result) as mock_geo, \
              patch("backup.backup_dashboards", return_value=fake_result) as mock_dash, \
              patch("backup.backup_moods", return_value=fake_result) as mock_moods, \
-             patch("backup._print_summary"):
+             patch("backup._print_summary"), \
+             patch("backup._write_manifest"):
             mock_dt.datetime.now.return_value.strftime.return_value = "2026-05-11_00-00"
             backup.main()
 
@@ -417,14 +419,14 @@ class TestMain:
         mock_dash.assert_called_once()
         mock_moods.assert_called_once()
 
-    def test_render_svg_flag_calls_render_flows(self):
+    def test_render_svg_flag_calls_render_flows(self, monkeypatch):
         """main() calls _render_flows with png=False when --render-svg is passed."""
         import backup
         from unittest.mock import ANY
+        monkeypatch.setenv("HOMEY_API_URL", "http://192.168.1.1")
+        monkeypatch.setenv("HOMEY_API_TOKEN", "atk_valid")
         fake_result = _fake_result()
         with patch("sys.argv", ["backup.py", "--render-svg"]), \
-             patch("backup.HOMEY_API_URL", "http://192.168.1.1"), \
-             patch("backup.HOMEY_API_TOKEN", "atk_valid"), \
              patch("backup.HomeyAPI"), \
              patch("backup.datetime") as mock_dt, \
              patch("backup.backup_devices", return_value=fake_result), \
@@ -438,20 +440,21 @@ class TestMain:
              patch("backup.backup_dashboards", return_value=fake_result), \
              patch("backup.backup_moods", return_value=fake_result), \
              patch("backup._print_summary"), \
+             patch("backup._write_manifest"), \
              patch("backup._render_flows") as mock_render:
             mock_dt.datetime.now.return_value.strftime.return_value = "2026-05-11_00-00"
             backup.main()
 
         mock_render.assert_called_once_with(ANY, png=False)
 
-    def test_render_png_flag_calls_render_flows_with_png_true(self):
+    def test_render_png_flag_calls_render_flows_with_png_true(self, monkeypatch):
         """main() calls _render_flows with png=True when --render-png is passed."""
         import backup
         from unittest.mock import ANY
+        monkeypatch.setenv("HOMEY_API_URL", "http://192.168.1.1")
+        monkeypatch.setenv("HOMEY_API_TOKEN", "atk_valid")
         fake_result = _fake_result()
         with patch("sys.argv", ["backup.py", "--render-png"]), \
-             patch("backup.HOMEY_API_URL", "http://192.168.1.1"), \
-             patch("backup.HOMEY_API_TOKEN", "atk_valid"), \
              patch("backup.HomeyAPI"), \
              patch("backup.datetime") as mock_dt, \
              patch("backup.backup_devices", return_value=fake_result), \
@@ -465,19 +468,20 @@ class TestMain:
              patch("backup.backup_dashboards", return_value=fake_result), \
              patch("backup.backup_moods", return_value=fake_result), \
              patch("backup._print_summary"), \
+             patch("backup._write_manifest"), \
              patch("backup._render_flows") as mock_render:
             mock_dt.datetime.now.return_value.strftime.return_value = "2026-05-11_00-00"
             backup.main()
 
         mock_render.assert_called_once_with(ANY, png=True)
 
-    def test_no_render_flag_does_not_call_render_flows(self):
+    def test_no_render_flag_does_not_call_render_flows(self, monkeypatch):
         """main() does not call _render_flows when no render flag is passed."""
         import backup
+        monkeypatch.setenv("HOMEY_API_URL", "http://192.168.1.1")
+        monkeypatch.setenv("HOMEY_API_TOKEN", "atk_valid")
         fake_result = _fake_result()
         with patch("sys.argv", ["backup.py"]), \
-             patch("backup.HOMEY_API_URL", "http://192.168.1.1"), \
-             patch("backup.HOMEY_API_TOKEN", "atk_valid"), \
              patch("backup.HomeyAPI"), \
              patch("backup.datetime") as mock_dt, \
              patch("backup.backup_devices", return_value=fake_result), \
@@ -491,8 +495,44 @@ class TestMain:
              patch("backup.backup_dashboards", return_value=fake_result), \
              patch("backup.backup_moods", return_value=fake_result), \
              patch("backup._print_summary"), \
+             patch("backup._write_manifest"), \
              patch("backup._render_flows") as mock_render:
             mock_dt.datetime.now.return_value.strftime.return_value = "2026-05-11_00-00"
             backup.main()
 
         mock_render.assert_not_called()
+
+
+class TestWriteManifest:
+    """_write_manifest() writes a correctly-structured manifest.json."""
+
+    def test_writes_manifest_with_correct_structure(self, tmp_path):
+        """manifest.json is created with expected keys and per-category counts."""
+        import json
+        import backup
+
+        results = [
+            backup.BackupResult(category="Devices", saved=10, skipped=1, errors=0),
+            backup.BackupResult(category="Flows", saved=5, skipped=0, errors=2),
+        ]
+        backup._write_manifest(results, tmp_path, "2026-05-11_00-00", "0.3.4")
+
+        manifest_path = tmp_path / "manifest.json"
+        assert manifest_path.exists(), "manifest.json was not created"
+
+        data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        assert data["schema_version"] == 1
+        assert data["tool_version"] == "0.3.4"
+        assert data["timestamp"] == "2026-05-11_00-00"
+        assert data["completed"] is True
+        assert data["categories"]["Devices"] == {"saved": 10, "skipped": 1, "errors": 0}
+        assert data["categories"]["Flows"] == {"saved": 5, "skipped": 0, "errors": 2}
+
+    def test_creates_file_in_backup_root(self, tmp_path):
+        """manifest.json is written directly into the backup_root directory."""
+        import backup
+
+        backup._write_manifest([], tmp_path, "2026-05-11_12-00", "0.3.4")
+
+        assert (tmp_path / "manifest.json").exists()
+        assert not (tmp_path / "categories" / "manifest.json").exists()
