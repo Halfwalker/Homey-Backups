@@ -767,6 +767,12 @@ def _render_flows(flows_dir: pathlib.Path, *, png: bool = False) -> None:
 
     cmd = [sys.executable, str(svg_script)] + [str(f) for f in flow_files]
     if png:
+        # PNG requires cairosvg, which lives in render_flows.py's PEP 723 inline
+        # header. Use 'uv run' so uv auto-installs it; fall back to sys.executable
+        # (will error gracefully if cairosvg is absent).
+        uv_bin = shutil.which("uv")
+        if uv_bin:
+            cmd = [uv_bin, "run", str(svg_script)] + [str(f) for f in flow_files]
         cmd.append("--png")
 
     mode = "PNG" if png else "SVG"
