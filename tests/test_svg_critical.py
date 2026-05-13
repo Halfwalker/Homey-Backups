@@ -4,6 +4,7 @@ Tests for render_flows.py critical behaviour and utility functions.
 Run:  pytest tests/test_svg_critical.py -v
 """
 import json
+import os
 import pathlib
 import sys
 import pytest
@@ -462,6 +463,7 @@ _LOCKED_FLOW = {
 class TestRenderFlowWriteError:
     """render_flow() must propagate OS-level write errors."""
 
+    @pytest.mark.skipif(os.getuid() == 0, reason="chmod has no effect when running as root")
     def test_raises_on_unwritable_output_dir(self, tmp_path):
         """Raises PermissionError or OSError when the output directory is not writable."""
         import render_flows._renderers
