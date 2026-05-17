@@ -1,6 +1,6 @@
-# Homey Backup & Restore Tools
+# Homey Backup, Render Flows & Restore Tools
 
-A set of Python scripts to **back up**, **restore**, and **visualise** devices, flows, zones, and variables from a Homey Pro instance via its local REST API. No cloud, no MCP, no add-ons required.
+A set of Python scripts to **back up**, **restore**, and **visualize** devices, flows, zones, and variables from a Homey Pro instance via its local REST API. No cloud, no MCP, no add-ons required.
 
 > 🚨 **Recovering after a factory reset?**
 > `restore.py` is a **read-only local browser** — it does not write anything to Homey. You must manually re-import via the Homey web app or REST API, then fix UUID references to devices, zones, folders, and other flows. **Steps must be done in a specific order or flows will be broken on import.**
@@ -47,6 +47,9 @@ If you are restoring a Homey Pro after a factory reset, see **[RECOVERY.md](RECO
 # Back up everything
 HOMEY_API_URL=http://192.168.x.x HOMEY_API_TOKEN=your-token uv run backup.py
 
+# Back up everything and render all the flows as well
+HOMEY_API_URL=http://192.168.x.x HOMEY_API_TOKEN=your-token uv run backup.py --render-png
+
 # Browse backups interactively and prepare re-imports
 uv run restore.py
 
@@ -66,6 +69,14 @@ uv run backup.py # run within the project venv
 ```
 
 > Note: only `backup.py` and `restore.py` require dependencies via uv. `render_flows.py` (`uv run render_flows.py` or `python -m render_flows`) has a uv header that auto-installs `cairosvg` for `--png` mode; for SVG-only output it can be run directly with `python` without uv.
+
+---
+
+### Comparison of screenshot to rendered flow
+
+| Screenshot of flow | Rendered flow |
+| --- | --- |
+| [![Screenshot of advanced flow](images/Back-counter-light-screenshot.png)](images/Back-counter-light-screenshot.png) | [![Rendered advanced flow](images/Back-counter-light-rendered.png)](images/Back-counter-light-rendered.png) |
 
 ---
 
@@ -258,7 +269,7 @@ After a factory reset, restore in this exact order to avoid broken references:
 
 ---
 
-### `render_flows` — Visualise Flows as SVG
+### `render_flows` — Visualize Flows as SVG
 
 > **`render_flows.py`** is the primary script. The `render_flows/` package is the implementation. Both `uv run render_flows.py` and `python -m render_flows` work.
 

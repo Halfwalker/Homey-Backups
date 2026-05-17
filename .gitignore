@@ -5,6 +5,10 @@ Backups/
 *.svg
 *.png
 
+# ── Want documentation images ────────────────────────────────────────────────
+!images/Back-counter-light-rendered.png
+!images/Back-counter-light-screenshot.png
+
 # ── Coverage ─────────────────────────────────────────────────────────────────
 .coverage
 **/htmlcov/
