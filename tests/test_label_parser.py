@@ -511,14 +511,42 @@ class TestParseLabel:
         }
         assert _pl(card) == "→ Alice"
 
-    # ── Device name via ownerUri (lines 424-425) ──────────────────────────────
+    # ── Compact device naming ─────────────────────────────────────────────────
+
+    def test_device_name_from_card_id_precedes_stale_owner_uri(self):
+        current_uuid = "current-device-uuid"
+        stale_uuid = "stale-device-uuid"
+        card = {
+            "type": "action",
+            "id": f"homey:device:{current_uuid}:dim",
+            "ownerUri": f"homey:device:{stale_uuid}",
+        }
+        result = _pl(
+            card,
+            device_lookup={
+                current_uuid: "Current Lamp",
+                stale_uuid: "Stale Lamp",
+            },
+        )
+        assert result == "Current Lamp  Dim"
+
+    def test_device_name_falls_back_to_owner_uri_when_card_id_not_found(self):
+        card = {
+            "type": "action",
+            "id": "homey:device:missing-device-uuid:dim",
+            "ownerUri": "homey:device:owner-device-uuid",
+        }
+        result = _pl(
+            card,
+            device_lookup={"owner-device-uuid": "Owner Lamp"},
+        )
+        assert result == "Owner Lamp  Dim"
 
     def test_device_name_from_owner_uri(self):
-        # Lines 424-425: non-rich card with ownerUri → device_name from device_lookup
         dev_uuid = "dev-uuid-4242"
         card = {
             "type": "action",
-            "id": f"homey:device:{dev_uuid}:dim",
+            "id": "some:app:dim",
             "ownerUri": f"homey:device:{dev_uuid}",
             "args": {"value": "0.5"},
         }

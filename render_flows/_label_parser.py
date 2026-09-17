@@ -417,23 +417,22 @@ def _parse_label(
     capability = parts[-1] if parts else "unknown"
     capability = capability.replace("_", " ").title()
 
-    # Prepend device/owner name when available
+    # Prepend device name when available
     owner_uri = card.get("ownerUri") or ""
     device_name = ""
     if device_lookup:
-        if owner_uri:
-            uuid_part = owner_uri.split(":")[-1]
-            device_name = (
-                device_lookup.get(owner_uri)
-                or device_lookup.get(uuid_part)
-                or ""
-            )
-        # Fallback: extract device UUID from card ID (homey:device:<uuid>:<cap>)
-        if not device_name and card_id.startswith("homey:device:") and len(parts) >= 4:
+        if card_id.startswith("homey:device:") and len(parts) >= 4:
             dev_uuid = parts[2]
             device_name = (
                 device_lookup.get(dev_uuid)
                 or device_lookup.get(f"homey:device:{dev_uuid}")
+                or ""
+            )
+        if not device_name and owner_uri:
+            uuid_part = owner_uri.split(":")[-1]
+            device_name = (
+                device_lookup.get(owner_uri)
+                or device_lookup.get(uuid_part)
                 or ""
             )
     if device_name and device_name not in capability:
